@@ -317,9 +317,7 @@ function detailFromHtml(html, url) {
   };
 }
 
-async function detail(env, url) {
-  // Public Reel pages often expose Open Graph metadata in the initial HTML.
-  // Try a normal HTTP request first; Browser Run is only a fallback.
+async function detailHttp(url) {
   try {
     const response = await fetch(url, {
       headers: {
@@ -328,14 +326,18 @@ async function detail(env, url) {
       },
       redirect: "follow",
     });
-    if (response.ok) {
-      const html = await response.text();
-      const parsed = detailFromHtml(html, url);
-      if (parsed.description || parsed.image || parsed.title) return parsed;
-    }
+    if (!response.ok) return null;
+    const html = await response.text();
+    const parsed = detailFromHtml(html, url);
+    return (parsed.description || parsed.image || parsed.title) ? parsed : null;
   } catch {
-    // Fallback below.
+    return null;
   }
+}
+
+async function detail(env, url) {
+  const direct = await detailHttp(url);
+  if (direct) return direct;
   return detailFromHtml(await browserContent(env, url), url);
 }
 
@@ -436,43 +438,61 @@ function mobileVariant(url) {
   } catch { return url; }
 }
 
-async function enrichOnePending(env, runId, itemStatus) {
-  const row = await env.DB.prepare(
+async function enrichPendingBatch(env, runId, itemStatus) {
+  const rows = await env.DB.prepare(
     "SELECT id,source_key,facebook_id,permalink,item_type,caption,thumbnail_url,published_at " +
     "FROM facebook_items WHERE status IN ('shadow','draft','published') " +
-    "AND (caption='' OR caption IS NULL OR thumbnail_url IS NULL) " +
-    "ORDER BY CASE WHEN caption='' OR caption IS NULL THEN 0 ELSE 1 END, first_seen_at ASC LIMIT 1"
-  ).first();
+    "AND (caption='' OR caption IS NULL OR thumbnail_url IS NULL OR r2_thumbnail_key IS NULL) " +
+    "ORDER BY CASE WHEN caption='' OR caption IS NULL THEN 0 ELSE 1 END, first_seen_at ASC LIMIT 3"
+  ).all();
 
-  if (!row) {
-    await finishRun(env, runId, { status: "success", notes: "No pending Facebook item needs metadata enrichment." });
-    return { ok: true, status: "success", runId, enriched: 0 };
+  const pending = rows.results || [];
+  if (!pending.length) {
+    await finishRun(env, runId, { status:"success", notes:"No pending Facebook item needs metadata enrichment." });
+    return { ok:true,status:"success",runId,enriched:0 };
   }
 
-  try {
-    const details = await detail(env, row.permalink);
-    const candidate = {
-      permalink: row.source_key || row.permalink,
-      facebookId: row.facebook_id || facebookContentId(row.permalink),
-      itemType: row.item_type,
-      anchorText: row.caption || "",
-      thumbnailUrl: row.thumbnail_url || null,
-      viewLabel: null,
-    };
-    await upsertItem(env, candidate, details, row.permalink, itemStatus);
-    await finishRun(env, runId, {
-      status: "success", discovered: 1, updated: 1,
-      notes: "Enriched one existing Facebook item with permalink metadata."
-    });
-    return { ok: true, status: "success", runId, enriched: 1, itemId: row.id };
-  } catch (error) {
-    await logError(env, runId, "enrich", row.permalink, "DETAIL_ERROR", String(error));
-    await finishRun(env, runId, {
-      status: "partial", discovered: 1, errors: 1,
-      notes: "Metadata enrichment was deferred after a Browser Run error."
-    });
-    return { ok: false, status: "partial", runId, enriched: 0, error: String(error) };
+  let updated = 0;
+  let errors = 0;
+  let browserFallbackUsed = false;
+
+  for (const row of pending) {
+    try {
+      let details = await detailHttp(row.permalink);
+      if (!details && !browserFallbackUsed) {
+        browserFallbackUsed = true;
+        details = detailFromHtml(await browserContent(env, row.permalink), row.permalink);
+      }
+      if (!details) {
+        errors++;
+        await logError(env, runId, "enrich", row.permalink, "NO_METADATA", "Public metadata was not available without additional browser requests.");
+        continue;
+      }
+      const candidate = {
+        permalink: row.source_key || row.permalink,
+        facebookId: row.facebook_id || facebookContentId(row.permalink),
+        itemType: row.item_type,
+        anchorText: row.caption || "",
+        thumbnailUrl: row.thumbnail_url || null,
+        viewLabel: null,
+      };
+      await upsertItem(env, candidate, details, row.permalink, itemStatus);
+      updated++;
+    } catch (error) {
+      errors++;
+      await logError(env, runId, "enrich", row.permalink, "DETAIL_ERROR", String(error));
+    }
   }
+
+  const status = errors && !updated ? "partial" : "success";
+  await finishRun(env, runId, {
+    status,
+    discovered: pending.length,
+    updated,
+    errors,
+    notes: "Enriched up to three Facebook items; Browser Run fallback capped at one request."
+  });
+  return { ok:updated>0 || !errors,status,runId,enriched:updated,errors };
 }
 
 async function sync(env, trigger = "cron") {
@@ -507,7 +527,7 @@ async function sync(env, trigger = "cron") {
     const hour = now.getUTCHours();
 
     if (minute < 30 && hour % 6 !== 3) {
-      return enrichOnePending(env, runId, itemStatus);
+      return enrichPendingBatch(env, runId, itemStatus);
     }
 
     // Probe the normal profile every 6 hours (03/09/15/21 UTC) because Facebook currently
