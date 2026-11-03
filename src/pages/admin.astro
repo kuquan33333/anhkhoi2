@@ -22,7 +22,8 @@ const title = "Admin · Anh Khôi AI Media";
     table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px;border-bottom:1px solid #ffffff12;vertical-align:top}th{color:#83a6ce}.scroll{overflow:auto;max-height:470px}
     .ok{color:#65d79d}.warn{color:#ffcf66}.bad{color:#ff7c91}.hidden{display:none!important}.switch{display:flex;gap:8px;align-items:center;margin:7px 0}.switch input{width:auto}
     h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:16px 0 6px}.toolbar{position:sticky;top:0;z-index:5;background:#07101fe8;backdrop-filter:blur(15px);padding:12px 0;margin-bottom:14px}
-    @media(max-width:760px){.wrap{padding:14px}.col6{grid-column:span 12}.card{padding:14px}th:nth-child(3),td:nth-child(3){display:none}}
+    .media-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.media-item{border:1px solid #ffffff14;border-radius:12px;overflow:hidden;background:#07111f}.media-item img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.media-actions{display:flex;gap:6px;flex-wrap:wrap;padding:8px}.media-actions button{font-size:11px;padding:6px 8px}.post-row{padding:9px 0;border-bottom:1px solid #ffffff12}.post-row:last-child{border-bottom:0}.cover-preview{width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-top:8px;background:#07111f}.mini{font-size:12px;padding:7px 9px}
+    @media(max-width:760px){.wrap{padding:14px}.col6{grid-column:span 12}.card{padding:14px}th:nth-child(3),td:nth-child(3){display:none}.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body>
@@ -71,15 +72,33 @@ const title = "Admin · Anh Khôi AI Media";
       </section>
 
       <section class="card col6">
-        <h2>Đăng bài thủ công</h2>
+        <div class="row between"><h2 id="manualHeading">Đăng bài thủ công</h2><button id="newPostBtn" class="btn alt mini" type="button">Bài mới</button></div>
         <form id="manualForm">
+          <input id="manualId" type="hidden" />
           <label>Tiêu đề</label><input id="manualTitle" />
+          <label>Slug (để trống sẽ tự tạo)</label><input id="manualSlug" placeholder="ten-bai-viet" />
+          <div class="grid" style="gap:10px">
+            <div class="col6"><label>Chuyên mục</label><input id="manualCategory" placeholder="Công nghệ" /></div>
+            <div class="col6"><label>Tag, cách nhau bằng dấu phẩy</label><input id="manualTags" placeholder="AI, Facebook, Video" /></div>
+          </div>
           <label>Mô tả ngắn</label><input id="manualExcerpt" />
-          <label>Nội dung Markdown</label><textarea id="manualBody"></textarea>
+          <label>Ảnh bìa</label><input id="manualCover" placeholder="Chọn từ thư viện ảnh bên dưới" readonly />
+          <img id="manualCoverPreview" class="cover-preview hidden" alt="Ảnh bìa" />
+          <label>Nội dung Markdown</label><textarea id="manualBody" style="min-height:260px"></textarea>
           <label>Trạng thái</label><select id="manualStatus"><option value="draft">Nháp</option><option value="published">Xuất bản</option></select>
-          <div class="row" style="margin-top:12px"><button class="btn">Lưu bài</button><span id="manualMsg" class="muted"></span></div>
+          <div class="row" style="margin-top:12px"><button class="btn">Lưu bài</button><button id="deletePostBtn" class="btn danger hidden" type="button">Xóa bài</button><span id="manualMsg" class="muted"></span></div>
         </form>
         <h3>Bài gần đây</h3><div id="manualList" class="muted"></div>
+      </section>
+
+      <section class="card col12">
+        <div class="row between"><h2>Thư viện ảnh R2</h2><span id="mediaMsg" class="muted"></span></div>
+        <form id="mediaForm" class="row">
+          <input id="mediaFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" style="flex:1;min-width:220px" />
+          <button class="btn" type="submit">Upload ảnh</button>
+        </form>
+        <p class="muted" style="font-size:12px;margin:9px 0 12px">JPEG, PNG, WebP, GIF hoặc AVIF · tối đa 8 MB. Ảnh được lưu vào Cloudflare R2, không commit GitHub.</p>
+        <div id="mediaGrid" class="media-grid"></div>
       </section>
     </div>
   </main>
@@ -106,7 +125,7 @@ async function init(){
   if(data.user.mustChangePassword) $("#health").innerHTML='<span class="warn">Nên đổi mật khẩu mặc định</span>';
   await refresh();
 }
-async function refresh(){ await Promise.all([loadSettings(),loadItems(),loadRuns(),loadManual()]); }
+async function refresh(){ await Promise.all([loadSettings(),loadItems(),loadRuns(),loadManual(),loadMedia()]); }
 async function loadSettings(){
   const {data}=await api("/api/admin/settings"); if(!data.ok)return;
   const s=data.settings; $("#settings").innerHTML=[
@@ -129,15 +148,65 @@ async function loadRuns(){
   $("#runsBody").innerHTML=(data.runs||[]).map(x=>'<tr><td>'+esc(x.started_at)+'</td><td class="'+(x.status==="success"?"ok":x.status==="blocked"?"bad":"warn")+'">'+esc(x.status)+(x.blocked_reason?'<br><span class="muted">'+esc(x.blocked_reason)+'</span>':"")+'</td><td>'+esc(x.inserted_count)+' / '+esc(x.error_count)+'</td></tr>').join("")||'<tr><td colspan="3" class="muted">Chưa chạy.</td></tr>';
 }
 async function loadManual(){
- const {data}=await api("/api/admin/manual-posts"); if(!data.ok)return;
- $("#manualList").innerHTML=(data.posts||[]).slice(0,8).map(p=>'<div>• '+esc(p.title)+' <span class="pill">'+esc(p.status)+'</span></div>').join("")||"Chưa có bài thủ công.";
+  const {data}=await api("/api/admin/manual-posts"); if(!data.ok)return;
+  $("#manualList").innerHTML=(data.posts||[]).slice(0,20).map(p=>{
+    const open=p.status==="published"?'<a class="btn alt mini" target="_blank" rel="noopener" href="/bai-viet/?slug='+encodeURIComponent(p.slug)+'">Xem</a>':"";
+    return '<div class="post-row row between"><div><b>'+esc(p.title)+'</b><br><span class="pill">'+esc(p.status)+'</span> <span class="muted">'+esc(p.slug)+'</span></div><div class="row"><button class="btn alt mini" type="button" data-edit-post="'+p.id+'">Sửa</button>'+open+'</div></div>';
+  }).join("")||"Chưa có bài thủ công.";
+  document.querySelectorAll("[data-edit-post]").forEach(el=>el.addEventListener("click",()=>editPost(el.dataset.editPost)));
+}
+async function editPost(id){
+  const {data}=await api("/api/admin/manual-posts/"+id); if(!data.ok)return;
+  const p=data.post;
+  $("#manualId").value=p.id;$("#manualTitle").value=p.title||"";$("#manualSlug").value=p.slug||"";
+  $("#manualExcerpt").value=p.excerpt||"";$("#manualCategory").value=p.category||"";
+  $("#manualTags").value=(p.tags||[]).join(", ");$("#manualBody").value=p.body_markdown||"";
+  $("#manualStatus").value=p.status||"draft";setCover(p.cover_r2_key||"");
+  $("#manualHeading").textContent="Sửa bài viết";$("#deletePostBtn").classList.remove("hidden");
+  $("#manualMsg").textContent="Đang sửa #"+p.id;$("#manualForm").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function resetManual(){
+  $("#manualForm").reset();$("#manualId").value="";$("#manualHeading").textContent="Đăng bài thủ công";
+  $("#deletePostBtn").classList.add("hidden");$("#manualMsg").textContent="";setCover("");
+}
+function setCover(key){
+  $("#manualCover").value=key||"";const img=$("#manualCoverPreview");
+  if(key){img.src="/api/media?key="+encodeURIComponent(key);img.classList.remove("hidden");}
+  else{img.removeAttribute("src");img.classList.add("hidden");}
+}
+function insertMarkdownImage(key){
+  const field=$("#manualBody");const url="/api/media?key="+encodeURIComponent(key);const text="\n![Ảnh bài viết]("+url+")\n";
+  const start=field.selectionStart??field.value.length,end=field.selectionEnd??field.value.length;
+  field.value=field.value.slice(0,start)+text+field.value.slice(end);field.focus();field.selectionStart=field.selectionEnd=start+text.length;
+}
+async function loadMedia(){
+  const {data}=await api("/api/admin/media");if(!data.ok)return;
+  $("#mediaGrid").innerHTML=(data.items||[]).map(m=>'<div class="media-item"><img loading="lazy" src="'+esc(m.url)+'" alt=""><div class="media-actions"><button type="button" class="btn alt" data-cover="'+esc(m.key)+'">Làm bìa</button><button type="button" class="btn alt" data-insert="'+esc(m.key)+'">Chèn bài</button><button type="button" class="btn danger" data-delete-media="'+esc(m.key)+'">Xóa</button></div></div>').join("")||'<div class="muted">Chưa có ảnh upload.</div>';
+  document.querySelectorAll("[data-cover]").forEach(el=>el.addEventListener("click",()=>setCover(el.dataset.cover)));
+  document.querySelectorAll("[data-insert]").forEach(el=>el.addEventListener("click",()=>insertMarkdownImage(el.dataset.insert)));
+  document.querySelectorAll("[data-delete-media]").forEach(el=>el.addEventListener("click",async()=>{if(!confirm("Xóa ảnh này khỏi R2? Bài đang dùng ảnh có thể bị mất ảnh."))return;const {data}=await api("/api/admin/media?key="+encodeURIComponent(el.dataset.deleteMedia),{method:"DELETE"});$("#mediaMsg").textContent=data.ok?"Đã xóa ảnh":"Xóa thất bại";if(data.ok)await loadMedia();}));
 }
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#loginMsg").textContent="Đang đăng nhập…";const {r,data}=await api("/api/admin/login",{method:"POST",body:JSON.stringify({username:$("#username").value,password:$("#password").value})});if(!r.ok){$("#loginMsg").textContent=data.error||"Đăng nhập thất bại";return}csrf=data.csrfToken;sessionStorage.setItem("ak_csrf",csrf);$("#loginMsg").textContent="";await init();});
 $("#logoutBtn").addEventListener("click",async()=>{await api("/api/admin/logout",{method:"POST"});sessionStorage.removeItem("ak_csrf");csrf="";showLogin();});
 $("#syncBtn").addEventListener("click",async()=>{$("#health").textContent="Đang đồng bộ…";const {data}=await api("/api/admin/sync",{method:"POST",body:"{}"});$("#health").textContent=data.ok?"Đồng bộ xong":("Đồng bộ: "+(data.error||data.status||"lỗi"));await refresh();});
 $("#saveSettings").addEventListener("click",async()=>{const settings={};document.querySelectorAll("[data-setting]").forEach(el=>settings[el.dataset.setting]=el.type==="checkbox"?String(el.checked):el.value);const {data}=await api("/api/admin/settings",{method:"PATCH",body:JSON.stringify({settings})});$("#settingsMsg").textContent=data.ok?"Đã lưu":"Lỗi";});
 $("#passwordForm").addEventListener("submit",async e=>{e.preventDefault();const {data}=await api("/api/admin/password",{method:"POST",body:JSON.stringify({currentPassword:$("#currentPassword").value,newPassword:$("#newPassword").value})});$("#passwordMsg").textContent=data.ok?"Đã đổi mật khẩu":(data.error||"Lỗi");});
-$("#manualForm").addEventListener("submit",async e=>{e.preventDefault();const {data}=await api("/api/admin/manual-posts",{method:"POST",body:JSON.stringify({title:$("#manualTitle").value,excerpt:$("#manualExcerpt").value,bodyMarkdown:$("#manualBody").value,status:$("#manualStatus").value})});$("#manualMsg").textContent=data.ok?"Đã lưu":"Lỗi: "+(data.error||"");if(data.ok){e.target.reset();await loadManual();}});
+$("#manualForm").addEventListener("submit",async e=>{
+  e.preventDefault();const id=$("#manualId").value.trim();
+  const payload={title:$("#manualTitle").value,slug:$("#manualSlug").value,excerpt:$("#manualExcerpt").value,category:$("#manualCategory").value,tags:$("#manualTags").value.split(",").map(x=>x.trim()).filter(Boolean),coverR2Key:$("#manualCover").value,bodyMarkdown:$("#manualBody").value,status:$("#manualStatus").value};
+  const {data}=await api(id?("/api/admin/manual-posts/"+id):"/api/admin/manual-posts",{method:id?"PATCH":"POST",body:JSON.stringify(payload)});
+  $("#manualMsg").textContent=data.ok?"Đã lưu bài":"Lỗi: "+(data.error||"");
+  if(data.ok){resetManual();await loadManual();}
+});
+$("#newPostBtn").addEventListener("click",resetManual);
+$("#deletePostBtn").addEventListener("click",async()=>{const id=$("#manualId").value;if(!id||!confirm("Xóa bài này khỏi website?"))return;const {data}=await api("/api/admin/manual-posts/"+id,{method:"DELETE"});$("#manualMsg").textContent=data.ok?"Đã xóa bài":"Xóa thất bại";if(data.ok){resetManual();await loadManual();}});
+$("#mediaForm").addEventListener("submit",async e=>{
+  e.preventDefault();const file=$("#mediaFile").files?.[0];if(!file){$("#mediaMsg").textContent="Chọn ảnh trước.";return}
+  $("#mediaMsg").textContent="Đang upload…";const form=new FormData();form.append("file",file);
+  const r=await fetch("/api/admin/media",{method:"POST",headers:csrf?{"x-admin-csrf":csrf}:{},body:form});
+  const data=await r.json().catch(()=>({ok:false,error:"invalid_response"}));$("#mediaMsg").textContent=data.ok?"Upload thành công":("Lỗi: "+(data.error||"upload_failed"));
+  if(data.ok){$("#mediaFile").value="";setCover(data.key);await loadMedia();}
+});
 init();
 </script>
 </body>
