@@ -91,6 +91,7 @@ const title = "Admin · Anh Khôi AI Media";
             <div class="col6"><label>Chuyên mục</label><input id="manualCategory" placeholder="Công nghệ" /></div>
             <div class="col6"><label>Tag, cách nhau bằng dấu phẩy</label><input id="manualTags" placeholder="AI, Facebook, Video" /></div>
           </div>
+          <label>Ngôn ngữ</label><select id="manualLanguage"><option value="vi">Tiếng Việt</option><option value="en">English</option></select>
           <label>Mô tả ngắn</label><input id="manualExcerpt" />
           <label>Ảnh bìa</label><input id="manualCover" placeholder="Chọn từ thư viện ảnh bên dưới" readonly />
           <img id="manualCoverPreview" class="cover-preview hidden" alt="Ảnh bìa" />
@@ -178,7 +179,7 @@ async function editPost(id){
   const p=data.post;
   $("#manualId").value=p.id;$("#manualTitle").value=p.title||"";$("#manualSlug").value=p.slug||"";
   $("#manualExcerpt").value=p.excerpt||"";$("#manualCategory").value=p.category||"";
-  $("#manualTags").value=(p.tags||[]).join(", ");$("#manualBody").value=p.body_markdown||"";
+  $("#manualTags").value=(p.tags||[]).join(", ");$("#manualLanguage").value=p.language||"vi";$("#manualBody").value=p.body_markdown||"";
   $("#manualStatus").value=p.status||"draft";setCover(p.cover_r2_key||"");
   $("#manualHeading").textContent="Sửa bài viết";$("#deletePostBtn").classList.remove("hidden");
   $("#manualMsg").textContent="Đang sửa #"+p.id;$("#manualForm").scrollIntoView({behavior:"smooth",block:"start"});
@@ -212,7 +213,7 @@ $("#saveSettings").addEventListener("click",async()=>{const settings={};document
 $("#passwordForm").addEventListener("submit",async e=>{e.preventDefault();const {data}=await api("/api/admin/password",{method:"POST",body:JSON.stringify({currentPassword:$("#currentPassword").value,newPassword:$("#newPassword").value})});$("#passwordMsg").textContent=data.ok?"Đã đổi mật khẩu":(data.error||"Lỗi");});
 $("#manualForm").addEventListener("submit",async e=>{
   e.preventDefault();const id=$("#manualId").value.trim();
-  const payload={title:$("#manualTitle").value,slug:$("#manualSlug").value,excerpt:$("#manualExcerpt").value,category:$("#manualCategory").value,tags:$("#manualTags").value.split(",").map(x=>x.trim()).filter(Boolean),coverR2Key:$("#manualCover").value,bodyMarkdown:$("#manualBody").value,status:$("#manualStatus").value};
+  const payload={title:$("#manualTitle").value,slug:$("#manualSlug").value,excerpt:$("#manualExcerpt").value,category:$("#manualCategory").value,language:$("#manualLanguage").value,tags:$("#manualTags").value.split(",").map(x=>x.trim()).filter(Boolean),coverR2Key:$("#manualCover").value,bodyMarkdown:$("#manualBody").value,status:$("#manualStatus").value};
   const {data}=await api(id?("/api/admin/manual-posts/"+id):"/api/admin/manual-posts",{method:id?"PATCH":"POST",body:JSON.stringify(payload)});
   $("#manualMsg").textContent=data.ok?"Đã lưu bài":"Lỗi: "+(data.error||"");
   if(data.ok){resetManual();await loadManual();}
