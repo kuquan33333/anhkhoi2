@@ -90,7 +90,8 @@ async function initRuntimeFeed(section) {
       img.onerror = () => { img.src = "/assets/anhkhoi-cover.webp"; };
       poster.appendChild(img);
       const body = makeEl("div", "ak-runtime-body");
-      const meta = makeEl("div", "ak-runtime-meta", (item.item_type || "post").toUpperCase());
+      const metaText = (item.item_type || "post").toUpperCase() + (item.viewLabel ? (" · " + item.viewLabel + " lượt xem") : "");
+      const meta = makeEl("div", "ak-runtime-meta", metaText);
       const caption = makeEl("p", "ak-runtime-caption", item.caption || "Nội dung mới từ Facebook Anh Khôi.");
       body.append(meta, caption);
       if (validFacebookUrl(item.permalink)) {

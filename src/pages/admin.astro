@@ -62,7 +62,7 @@ const title = "Admin · Anh Khôi AI Media";
 
       <section class="card col12">
         <h2>Nội dung Facebook đã phát hiện</h2>
-        <div class="scroll"><table><thead><tr><th>Loại</th><th>Nội dung</th><th>Trạng thái</th><th>Facebook</th></tr></thead><tbody id="itemsBody"></tbody></table></div>
+        <div class="scroll"><table><thead><tr><th>Ảnh</th><th>Loại / lượt xem</th><th>Nội dung</th><th>Trạng thái</th><th>Facebook</th></tr></thead><tbody id="itemsBody"></tbody></table></div>
       </section>
 
       <section class="card col6">
@@ -117,7 +117,11 @@ async function loadSettings(){
 }
 async function loadItems(){
   const {data}=await api("/api/admin/items?limit=60"); if(!data.ok)return;
-  $("#itemsBody").innerHTML=(data.items||[]).map(i=>'<tr><td>'+esc(i.item_type)+'</td><td>'+esc((i.caption||"").slice(0,180))+'</td><td><select data-item="'+i.id+'"><option '+(i.status==="shadow"?"selected":"")+'>shadow</option><option '+(i.status==="published"?"selected":"")+'>published</option><option '+(i.status==="hidden"?"selected":"")+'>hidden</option><option '+(i.status==="draft"?"selected":"")+'>draft</option></select></td><td>'+(i.permalink?'<a class="muted" target="_blank" rel="noopener" href="'+esc(i.permalink)+'">Mở</a>':"—")+'</td></tr>').join("")||'<tr><td colspan="4" class="muted">Chưa có dữ liệu — crawler đang ở shadow mode.</td></tr>';
+  $("#itemsBody").innerHTML=(data.items||[]).map(i=>{
+    const thumb=i.r2_thumbnail_key?("/api/media?key="+encodeURIComponent(i.r2_thumbnail_key)):(i.thumbnail_url||"/assets/anhkhoi-cover.webp");
+    const caption=(i.caption||"").slice(0,220);
+    return '<tr><td><img src="'+esc(thumb)+'" alt="" loading="lazy" style="width:62px;height:84px;object-fit:cover;border-radius:8px;background:#07111f"></td><td><b>'+esc(i.item_type)+'</b><br><span class="pill">'+esc(i.viewLabel||"—")+'</span></td><td>'+(caption?esc(caption):'<span class="muted">Đang chờ lấy caption…</span>')+'</td><td><select data-item="'+i.id+'"><option '+(i.status==="shadow"?"selected":"")+'>shadow</option><option '+(i.status==="published"?"selected":"")+'>published</option><option '+(i.status==="hidden"?"selected":"")+'>hidden</option><option '+(i.status==="draft"?"selected":"")+'>draft</option></select></td><td>'+(i.permalink?'<a class="muted" target="_blank" rel="noopener" href="'+esc(i.permalink)+'">Mở</a>':"—")+'</td></tr>';
+  }).join("")||'<tr><td colspan="5" class="muted">Chưa có dữ liệu — crawler đang ở shadow mode.</td></tr>';
   document.querySelectorAll("[data-item]").forEach(el=>el.addEventListener("change",async()=>{await api("/api/admin/items/"+el.dataset.item,{method:"PATCH",body:JSON.stringify({status:el.value})});}));
 }
 async function loadRuns(){
