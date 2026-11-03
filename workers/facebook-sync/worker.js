@@ -340,7 +340,7 @@ async function enrichOnePending(env, runId, itemStatus) {
   const row = await env.DB.prepare(
     "SELECT id,source_key,facebook_id,permalink,item_type,caption,thumbnail_url,published_at " +
     "FROM facebook_items WHERE status IN ('shadow','draft','published') " +
-    "AND (caption='' OR caption IS NULL OR published_at IS NULL) " +
+    "AND (caption='' OR caption IS NULL OR thumbnail_url IS NULL) " +
     "ORDER BY CASE WHEN caption='' OR caption IS NULL THEN 0 ELSE 1 END, first_seen_at ASC LIMIT 1"
   ).first();
 
@@ -459,7 +459,7 @@ async function sync(env, trigger = "cron") {
         "SELECT id,caption,thumbnail_url,published_at FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
       ).bind(candidate.permalink, candidate.facebookId || null, candidate.facebookId || null).first();
       let details = null;
-      const needsDetails = !exists || !exists.caption || !exists.thumbnail_url || !exists.published_at;
+      const needsDetails = !exists || !exists.caption || !exists.thumbnail_url;
       if (needsDetails && detailed < detailBudget) {
         detailed++;
         try {
