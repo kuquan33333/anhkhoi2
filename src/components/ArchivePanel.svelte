@@ -20,7 +20,7 @@ interface Post {
 		title: string;
         titleEn?: string;
 		tags: string[];
-		category?: string;
+		category?: string | null;
 		published: Date;
 	};
 }
