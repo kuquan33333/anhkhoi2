@@ -9,7 +9,7 @@ export async function onRequestGet({ request, env }) {
   const auth = await requireAdmin(request, env);
   if (!auth.ok) return auth.response;
   const rows = await env.DB.prepare(
-    "SELECT id,slug,title,excerpt,language,category,tags_json,status,published_at,created_at,updated_at FROM manual_posts ORDER BY id DESC LIMIT 100"
+    "SELECT id,slug,title,excerpt,language,category,tags_json,cover_r2_key,status,published_at,created_at,updated_at FROM manual_posts ORDER BY id DESC LIMIT 100"
   ).all();
   return json({ ok: true, posts: rows.results || [] });
 }
@@ -25,10 +25,11 @@ export async function onRequestPost({ request, env }) {
   const publishedAt = status === "published" ? new Date().toISOString() : null;
   try {
     const r = await env.DB.prepare(
-      "INSERT INTO manual_posts(slug,title,excerpt,body_markdown,language,category,tags_json,status,published_at) VALUES(?,?,?,?,?,?,?,?,?)"
+      "INSERT INTO manual_posts(slug,title,excerpt,body_markdown,language,category,tags_json,cover_r2_key,status,published_at) VALUES(?,?,?,?,?,?,?,?,?,?)"
     ).bind(
       slug, title, String(body?.excerpt || ""), String(body?.bodyMarkdown || ""), String(body?.language || "vi"),
-      body?.category ? String(body.category) : null, JSON.stringify(Array.isArray(body?.tags) ? body.tags : []), status, publishedAt
+      body?.category ? String(body.category) : null, JSON.stringify(Array.isArray(body?.tags) ? body.tags : []),
+      body?.coverR2Key ? String(body.coverR2Key) : null, status, publishedAt
     ).run();
     return json({ ok: true, id: r.meta?.last_row_id, slug });
   } catch (error) {

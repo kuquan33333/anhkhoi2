@@ -42,6 +42,18 @@ async function initManualFeed(section) {
     for (const post of posts.slice(0,limit)) {
       const card = document.createElement("article");
       card.className = "ak-manual-card";
+      if (post.cover_r2_key) {
+        const media = document.createElement("a");
+        media.className = "ak-manual-cover";
+        media.href = "/bai-viet/?slug=" + encodeURIComponent(post.slug);
+        const img = document.createElement("img");
+        img.src = "/api/media?key=" + encodeURIComponent(post.cover_r2_key);
+        img.alt = post.title || "Bài viết Anh Khôi";
+        img.loading = "lazy";
+        img.decoding = "async";
+        media.append(img);
+        card.append(media);
+      }
       const meta = akText("div","ak-manual-meta",
         [post.category || "Bài viết", akManualDate(post.published_at)].filter(Boolean).join(" · "));
       const title = akText("h3","ak-manual-title",post.title || "Bài viết");
@@ -68,7 +80,9 @@ document.addEventListener("astro:page-load",bootManualFeeds);
 
 <style is:global>
 .ak-manual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-.ak-manual-card{padding:1rem;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg)}
+.ak-manual-card{padding:1rem;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg);overflow:hidden}
+.ak-manual-cover{display:block;margin:-1rem -1rem 1rem;aspect-ratio:16/9;overflow:hidden;background:var(--btn-plain-bg-hover)}
+.ak-manual-cover img{width:100%;height:100%;object-fit:cover;display:block}
 .ak-manual-meta{font-size:.72rem;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.06em}
 .ak-manual-title{font-size:1.05rem;font-weight:850;line-height:1.4;margin-top:.45rem}
 .ak-manual-excerpt{font-size:.9rem;line-height:1.65;margin-top:.55rem;color:var(--text-75)}

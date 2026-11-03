@@ -13,6 +13,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
       <div id="ak-live-meta" class="text-sm font-bold text-[var(--primary)]"></div>
       <h1 id="ak-live-title" class="text-3xl md:text-4xl font-extrabold leading-tight mt-2"></h1>
       <p id="ak-live-excerpt" class="text-75 leading-8 mt-4"></p>
+      <img id="ak-live-cover" class="hidden w-full max-h-[32rem] object-cover rounded-xl mt-6" alt="" />
       <div id="ak-live-body" class="ak-live-body mt-7"></div>
       <div id="ak-live-tags" class="flex flex-wrap gap-2 mt-7"></div>
     </div>
@@ -29,6 +30,7 @@ const title=document.getElementById("ak-live-title");
 const excerpt=document.getElementById("ak-live-excerpt");
 const meta=document.getElementById("ak-live-meta");
 const body=document.getElementById("ak-live-body");
+const cover=document.getElementById("ak-live-cover");
 const tags=document.getElementById("ak-live-tags");
 
 async function loadLiveArticle(){
@@ -45,6 +47,10 @@ async function loadLiveArticle(){
     if(meta){
       const date=post.published_at?new Intl.DateTimeFormat("vi-VN",{dateStyle:"long"}).format(new Date(post.published_at)):"";
       meta.textContent=[post.category||"Bài viết",date].filter(Boolean).join(" · ");
+    }
+    if(cover){
+      if(post.cover_r2_key){cover.src="/api/media?key="+encodeURIComponent(post.cover_r2_key);cover.alt=post.title||"Ảnh bài viết";cover.classList.remove("hidden");}
+      else {cover.removeAttribute("src");cover.classList.add("hidden");}
     }
     if(body) body.innerHTML=md.render(post.body_markdown||"");
     if(tags){

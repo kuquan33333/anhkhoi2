@@ -10,7 +10,7 @@ export async function onRequestGet({ env, params }) {
   if (!slug || slug.length > 120) return json({ ok: false, error: "invalid_slug" }, 400);
 
   const post = await env.DB.prepare(
-    "SELECT slug,title,excerpt,body_markdown,language,category,tags_json,published_at,created_at,updated_at " +
+    "SELECT slug,title,excerpt,body_markdown,language,category,tags_json,cover_r2_key,published_at,created_at,updated_at " +
     "FROM manual_posts WHERE slug=? AND status='published' LIMIT 1"
   ).bind(slug).first();
   if (!post) return json({ ok: false, error: "not_found" }, 404);
