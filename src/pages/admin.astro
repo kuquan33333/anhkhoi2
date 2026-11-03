@@ -22,8 +22,8 @@ const title = "Admin · Anh Khôi AI Media";
     table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px;border-bottom:1px solid #ffffff12;vertical-align:top}th{color:#83a6ce}.scroll{overflow:auto;max-height:470px}
     .ok{color:#65d79d}.warn{color:#ffcf66}.bad{color:#ff7c91}.hidden{display:none!important}.switch{display:flex;gap:8px;align-items:center;margin:7px 0}.switch input{width:auto}
     h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:16px 0 6px}.toolbar{position:sticky;top:0;z-index:5;background:#07101fe8;backdrop-filter:blur(15px);padding:12px 0;margin-bottom:14px}
-    .media-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.media-item{border:1px solid #ffffff14;border-radius:12px;overflow:hidden;background:#07111f}.media-item img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.media-actions{display:flex;gap:6px;flex-wrap:wrap;padding:8px}.media-actions button{font-size:11px;padding:6px 8px}.post-row{padding:9px 0;border-bottom:1px solid #ffffff12}.post-row:last-child{border-bottom:0}.cover-preview{width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-top:8px;background:#07111f}.mini{font-size:12px;padding:7px 9px}
-    @media(max-width:760px){.wrap{padding:14px}.col6{grid-column:span 12}.card{padding:14px}th:nth-child(3),td:nth-child(3){display:none}.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .media-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.media-item{border:1px solid #ffffff14;border-radius:12px;overflow:hidden;background:#07111f}.media-item img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.media-actions{display:flex;gap:6px;flex-wrap:wrap;padding:8px}.media-actions button{font-size:11px;padding:6px 8px}.post-row{padding:9px 0;border-bottom:1px solid #ffffff12}.post-row:last-child{border-bottom:0}.cover-preview{width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-top:8px;background:#07111f}.mini{font-size:12px;padding:7px 9px}.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.stat{background:#07111f;border:1px solid #ffffff12;border-radius:12px;padding:12px}.stat strong{display:block;font-size:22px}.stat span{font-size:11px;color:#8da1bb}
+    @media(max-width:760px){.wrap{padding:14px}.col6{grid-column:span 12}.card{padding:14px}th:nth-child(3),td:nth-child(3){display:none}.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
 <body>
@@ -46,8 +46,18 @@ const title = "Admin · Anh Khôi AI Media";
     </div>
 
     <div class="grid">
+      <section class="card col12">
+        <div class="row between"><h2>Tổng quan hệ thống</h2><span id="lastSyncText" class="muted"></span></div>
+        <div class="stats">
+          <div class="stat"><strong id="statReels">—</strong><span>Reel đã lưu</span></div>
+          <div class="stat"><strong id="statCaptions">—</strong><span>Reel có caption</span></div>
+          <div class="stat"><strong id="statCached">—</strong><span>Thumbnail đã cache R2</span></div>
+          <div class="stat"><strong id="statPosts">—</strong><span>Bài thủ công</span></div>
+          <div class="stat"><strong id="statMedia">—</strong><span>Ảnh Admin trên R2</span></div>
+        </div>
+      </section>
       <section class="card col6">
-        <div class="row between"><h2>Đồng bộ Facebook</h2><button id="syncBtn" class="btn">Đồng bộ ngay</button></div>
+        <div class="row between"><h2>Đồng bộ Facebook</h2><div class="row"><button id="enrichBtn" class="btn alt">Bổ sung caption</button><button id="syncBtn" class="btn">Đồng bộ ngay</button></div></div>
         <div id="settings"></div>
         <div class="row" style="margin-top:12px"><button id="saveSettings" class="btn alt">Lưu cài đặt</button><span id="settingsMsg" class="muted"></span></div>
       </section>
@@ -125,7 +135,13 @@ async function init(){
   if(data.user.mustChangePassword) $("#health").innerHTML='<span class="warn">Nên đổi mật khẩu mặc định</span>';
   await refresh();
 }
-async function refresh(){ await Promise.all([loadSettings(),loadItems(),loadRuns(),loadManual(),loadMedia()]); }
+async function refresh(){ await Promise.all([loadStats(),loadSettings(),loadItems(),loadRuns(),loadManual(),loadMedia()]); }
+async function loadStats(){
+  const {data}=await api("/api/admin/stats");if(!data.ok)return;
+  $("#statReels").textContent=data.facebook?.total??0;$("#statCaptions").textContent=data.facebook?.captions??0;
+  $("#statCached").textContent=data.facebook?.cached??0;$("#statPosts").textContent=data.posts?.total??0;$("#statMedia").textContent=data.media?.count??0;
+  const last=data.lastSync;$("#lastSyncText").textContent=last?("Sync #"+last.id+" · "+last.status+" · "+(last.finished_at||last.started_at)):"Chưa có sync";
+}
 async function loadSettings(){
   const {data}=await api("/api/admin/settings"); if(!data.ok)return;
   const s=data.settings; $("#settings").innerHTML=[
@@ -139,9 +155,11 @@ async function loadItems(){
   $("#itemsBody").innerHTML=(data.items||[]).map(i=>{
     const thumb=i.r2_thumbnail_key?("/api/media?key="+encodeURIComponent(i.r2_thumbnail_key)):(i.thumbnail_url||"/assets/anhkhoi-cover.webp");
     const caption=(i.caption||"").slice(0,220);
-    return '<tr><td><img src="'+esc(thumb)+'" alt="" loading="lazy" style="width:62px;height:84px;object-fit:cover;border-radius:8px;background:#07111f"></td><td><b>'+esc(i.item_type)+'</b><br><span class="pill">'+esc(i.viewLabel||"—")+'</span></td><td>'+(caption?esc(caption):'<span class="muted">Đang chờ lấy caption…</span>')+'</td><td><select data-item="'+i.id+'"><option '+(i.status==="shadow"?"selected":"")+'>shadow</option><option '+(i.status==="published"?"selected":"")+'>published</option><option '+(i.status==="hidden"?"selected":"")+'>hidden</option><option '+(i.status==="draft"?"selected":"")+'>draft</option></select></td><td>'+(i.permalink?'<a class="muted" target="_blank" rel="noopener" href="'+esc(i.permalink)+'">Mở</a>':"—")+'</td></tr>';
-  }).join("")||'<tr><td colspan="5" class="muted">Chưa có dữ liệu — crawler đang ở shadow mode.</td></tr>';
-  document.querySelectorAll("[data-item]").forEach(el=>el.addEventListener("change",async()=>{await api("/api/admin/items/"+el.dataset.item,{method:"PATCH",body:JSON.stringify({status:el.value})});}));
+    return '<tr><td><img src="'+esc(thumb)+'" alt="" loading="lazy" style="width:62px;height:84px;object-fit:cover;border-radius:8px;background:#07111f"></td><td><b>'+esc(i.item_type)+'</b><br><span class="pill">'+esc(i.viewLabel||"—")+'</span></td><td>'+(caption?esc(caption):'<span class="muted">Đang chờ lấy caption…</span>')+'<br><button type="button" class="btn alt mini" data-caption-item="'+i.id+'">Sửa caption</button></td><td><select data-item="'+i.id+'"><option '+(i.status==="shadow"?"selected":"")+'>shadow</option><option '+(i.status==="published"?"selected":"")+'>published</option><option '+(i.status==="hidden"?"selected":"")+'>hidden</option><option '+(i.status==="draft"?"selected":"")+'>draft</option></select></td><td>'+(i.permalink?'<a class="muted" target="_blank" rel="noopener" href="'+esc(i.permalink)+'">Mở</a>':"—")+'</td></tr>';
+  }).join("")||'<tr><td colspan="5" class="muted">Chưa có dữ liệu.</td></tr>';
+  document.querySelectorAll("[data-item]").forEach(el=>el.addEventListener("change",async()=>{await api("/api/admin/items/"+el.dataset.item,{method:"PATCH",body:JSON.stringify({status:el.value})});await loadStats();}));
+  document.querySelectorAll("[data-caption-item]").forEach(el=>el.addEventListener("click",async()=>{const item=(data.items||[]).find(x=>String(x.id)===String(el.dataset.captionItem));if(!item)return;const next=prompt("Sửa caption Reel:",item.caption||"");if(next===null)return;const r=await api("/api/admin/items/"+item.id,{method:"PATCH",body:JSON.stringify({caption:next})});if(r.data.ok)await loadItems();}));
+
 }
 async function loadRuns(){
   const {data}=await api("/api/admin/runs"); if(!data.ok)return;
@@ -188,7 +206,8 @@ async function loadMedia(){
 }
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#loginMsg").textContent="Đang đăng nhập…";const {r,data}=await api("/api/admin/login",{method:"POST",body:JSON.stringify({username:$("#username").value,password:$("#password").value})});if(!r.ok){$("#loginMsg").textContent=data.error||"Đăng nhập thất bại";return}csrf=data.csrfToken;sessionStorage.setItem("ak_csrf",csrf);$("#loginMsg").textContent="";await init();});
 $("#logoutBtn").addEventListener("click",async()=>{await api("/api/admin/logout",{method:"POST"});sessionStorage.removeItem("ak_csrf");csrf="";showLogin();});
-$("#syncBtn").addEventListener("click",async()=>{$("#health").textContent="Đang đồng bộ…";const {data}=await api("/api/admin/sync",{method:"POST",body:"{}"});$("#health").textContent=data.ok?"Đồng bộ xong":("Đồng bộ: "+(data.error||data.status||"lỗi"));await refresh();});
+$("#syncBtn").addEventListener("click",async()=>{$("#health").textContent="Đang đồng bộ…";const {data}=await api("/api/admin/sync",{method:"POST",body:JSON.stringify({mode:"discover"})});$("#health").textContent=data.ok?"Đồng bộ xong":("Đồng bộ: "+(data.error||data.status||"lỗi"));await refresh();});
+$("#enrichBtn").addEventListener("click",async()=>{$("#health").textContent="Đang bổ sung caption…";const {data}=await api("/api/admin/sync",{method:"POST",body:JSON.stringify({mode:"enrich"})});$("#health").textContent=data.ok?("Đã bổ sung "+(data.enriched??0)+" mục"):("Enrich: "+(data.error||data.status||"lỗi"));await refresh();});
 $("#saveSettings").addEventListener("click",async()=>{const settings={};document.querySelectorAll("[data-setting]").forEach(el=>settings[el.dataset.setting]=el.type==="checkbox"?String(el.checked):el.value);const {data}=await api("/api/admin/settings",{method:"PATCH",body:JSON.stringify({settings})});$("#settingsMsg").textContent=data.ok?"Đã lưu":"Lỗi";});
 $("#passwordForm").addEventListener("submit",async e=>{e.preventDefault();const {data}=await api("/api/admin/password",{method:"POST",body:JSON.stringify({currentPassword:$("#currentPassword").value,newPassword:$("#newPassword").value})});$("#passwordMsg").textContent=data.ok?"Đã đổi mật khẩu":(data.error||"Lỗi");});
 $("#manualForm").addEventListener("submit",async e=>{

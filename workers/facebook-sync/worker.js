@@ -652,6 +652,20 @@ export default {
     }
     if (url.pathname === "/run" && request.method === "POST") {
       const trigger = request.headers.get("x-sync-trigger") === "admin" ? "admin" : "manual";
+      const mode = request.headers.get("x-sync-mode") || "discover";
+      if (mode === "enrich") {
+        const enabled = (await setting(env, "facebook_sync_enabled", "true")) === "true";
+        const runId = await createRun(env, "admin-enrich");
+        if (!enabled) {
+          await finishRun(env, runId, { status:"disabled", notes:"facebook_sync_enabled=false" });
+          return Response.json({ ok:true,status:"disabled",runId });
+        }
+        const shadow = (await setting(env, "facebook_shadow_mode", "true")) === "true";
+        const autoPublish = (await setting(env, "facebook_auto_publish", "true")) === "true";
+        const itemStatus = shadow ? "shadow" : (autoPublish ? "published" : "draft");
+        const result = await enrichPendingBatch(env, runId, itemStatus);
+        return Response.json(result, { status: result.ok ? 200 : 409 });
+      }
       const result = await sync(env, trigger);
       return Response.json(result, { status: result.ok ? 200 : 409 });
     }
