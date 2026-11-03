@@ -296,18 +296,21 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   const thumbnailUrl = details?.image || candidate.thumbnailUrl || null;
 
   const existing = await env.DB.prepare(
-    "SELECT id,status,r2_thumbnail_key FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
+    "SELECT id,status,r2_thumbnail_key,raw_json FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
   ).bind(sourceKey, facebookId, facebookId).first();
 
   let r2Key = existing?.r2_thumbnail_key || null;
   if (thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
 
+  let previousRaw = {};
+  try { previousRaw = JSON.parse(existing?.raw_json || "{}"); } catch {}
   const rawObject = {
-    sourceUrl,
-    viewLabel: candidate.viewLabel || null,
-    title: details?.title || "",
-    canonicalUrl: details?.canonical || null,
-    video: details?.video || "",
+    ...previousRaw,
+    sourceUrl: sourceUrl || previousRaw.sourceUrl || null,
+    viewLabel: candidate.viewLabel || previousRaw.viewLabel || null,
+    title: details?.title || previousRaw.title || "",
+    canonicalUrl: details?.canonical || previousRaw.canonicalUrl || null,
+    video: details?.video || previousRaw.video || "",
   };
   const rawJson = JSON.stringify(rawObject).slice(0, 50000);
   const detectedEmbedStatus = details?.video ? "detected" : null;
