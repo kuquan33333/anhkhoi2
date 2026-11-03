@@ -305,6 +305,15 @@ function mobileVariant(url) {
 
 async function sync(env, trigger = "cron") {
   const enabled = (await setting(env, "facebook_sync_enabled", "true")) === "true";
+  const pauseUntil = await setting(env, "sync_pause_until", "");
+  if (pauseUntil) {
+    const iso = pauseUntil.includes("T") ? pauseUntil : pauseUntil.replace(" ", "T") + "Z";
+    const untilMs = Date.parse(iso);
+    if (Number.isFinite(untilMs) && untilMs > Date.now()) {
+      return { ok: true, status: "paused", pauseUntil };
+    }
+  }
+
   const runId = await createRun(env, trigger);
   if (!enabled) {
     await finishRun(env, runId, { status: "disabled", notes: "facebook_sync_enabled=false" });
@@ -381,7 +390,10 @@ async function sync(env, trigger = "cron") {
       let details = null;
       const needsDetails = !exists || !exists.caption || !exists.thumbnail_url || !exists.published_at;
       if (needsDetails && detailed < detailBudget) {
-        try { details = await detail(env, candidate.permalink); detailed++; } catch (e) {
+        detailed++;
+        try {
+          details = await detail(env, candidate.permalink);
+        } catch (e) {
           await logError(env, runId, "detail", candidate.permalink, "DETAIL_ERROR", String(e));
           errors++;
         }
