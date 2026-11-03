@@ -1,0 +1,139 @@
+---
+interface Props { mode?: "home" | "reels"; }
+const { mode = "home" } = Astro.props;
+const isReels = mode === "reels";
+---
+<section class="ak-runtime-feed card-base p-6 md:p-7 mt-4 hidden"
+  data-ak-runtime-feed data-mode={mode}
+  aria-label={isReels ? "Facebook Reels tự động" : "Nội dung mới từ Facebook"}>
+  <div class="flex items-center justify-between gap-3 mb-4">
+    <div>
+      <span class="text-xs font-bold text-[var(--primary)]">FACEBOOK · AUTO SYNC</span>
+      <h2 class="text-xl font-extrabold mt-1"
+        data-ak-vi={isReels ? "Reels mới tự động" : "Mới từ Facebook Anh Khôi"}
+        data-ak-en={isReels ? "Latest synced Reels" : "Latest from Anh Khoi on Facebook"}>
+        {isReels ? "Reels mới tự động" : "Mới từ Facebook Anh Khôi"}
+      </h2>
+    </div>
+    {!isReels && <a href="/reels/" class="text-sm font-bold text-[var(--primary)]">Xem video →</a>}
+  </div>
+  <div class="ak-runtime-grid" data-runtime-grid></div>
+  <div class="ak-runtime-player hidden" data-runtime-player>
+    <div class="ak-runtime-player-inner" data-runtime-player-inner></div>
+    <a class="mt-3 inline-block text-sm font-bold text-[var(--primary)]"
+      data-runtime-fallback target="_blank" rel="noopener noreferrer">
+      <span data-ak-vi="Mở trên Facebook ↗" data-ak-en="Open on Facebook ↗">Mở trên Facebook ↗</span>
+    </a>
+  </div>
+</section>
+
+<script>
+function makeEl(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text != null) el.textContent = text;
+  return el;
+}
+function mediaUrl(item) {
+  if (item.r2_thumbnail_key) return "/api/media?key=" + encodeURIComponent(item.r2_thumbnail_key);
+  return item.thumbnail_url || "/assets/anhkhoi-cover.webp";
+}
+function validFacebookUrl(raw) {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" && (u.hostname === "facebook.com" || u.hostname.endsWith(".facebook.com"));
+  } catch { return false; }
+}
+function openRuntimePlayer(section, href) {
+  if (!validFacebookUrl(href)) return;
+  const region = section.querySelector("[data-runtime-player]");
+  const inner = section.querySelector("[data-runtime-player-inner]");
+  const fallback = section.querySelector("[data-runtime-fallback]");
+  if (!region || !inner || !fallback) return;
+  const plugin = new URL("https://www.facebook.com/plugins/video.php");
+  plugin.searchParams.set("href", href);
+  plugin.searchParams.set("show_text", "false");
+  plugin.searchParams.set("width", "760");
+  const iframe = document.createElement("iframe");
+  iframe.src = plugin.toString();
+  iframe.title = "Facebook video - Anh Khôi";
+  iframe.loading = "lazy";
+  iframe.allow = "encrypted-media; clipboard-write; fullscreen; picture-in-picture";
+  iframe.setAttribute("allowfullscreen", "");
+  inner.replaceChildren(iframe);
+  fallback.href = href;
+  region.classList.remove("hidden");
+  region.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+async function initRuntimeFeed(section) {
+  if (section.dataset.loaded === "1") return;
+  section.dataset.loaded = "1";
+  const mode = section.dataset.mode || "home";
+  const endpoint = mode === "reels" ? "/api/reels" : "/api/feed";
+  try {
+    const response = await fetch(endpoint, { headers: { accept: "application/json" } });
+    if (!response.ok) return;
+    const payload = await response.json();
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    if (!payload.enabled || !items.length) return;
+    const grid = section.querySelector("[data-runtime-grid]");
+    if (!grid) return;
+    const limit = mode === "reels" ? 30 : 6;
+    for (const item of items.slice(0, limit)) {
+      const card = makeEl("article", "ak-runtime-card");
+      const poster = makeEl("div", "ak-runtime-poster");
+      const img = document.createElement("img");
+      img.src = mediaUrl(item);
+      img.alt = item.caption ? String(item.caption).slice(0, 120) : "Facebook Anh Khôi";
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.onerror = () => { img.src = "/assets/anhkhoi-cover.webp"; };
+      poster.appendChild(img);
+      const body = makeEl("div", "ak-runtime-body");
+      const meta = makeEl("div", "ak-runtime-meta", (item.item_type || "post").toUpperCase());
+      const caption = makeEl("p", "ak-runtime-caption", item.caption || "Nội dung mới từ Facebook Anh Khôi.");
+      body.append(meta, caption);
+      if (validFacebookUrl(item.permalink)) {
+        const actions = makeEl("div", "ak-runtime-actions");
+        if (item.item_type === "reel" || item.item_type === "video") {
+          const play = makeEl("button", "ak-cta", "▶ Phát video");
+          play.type = "button";
+          play.addEventListener("click", () => openRuntimePlayer(section, item.permalink));
+          actions.appendChild(play);
+        }
+        const link = makeEl("a", "ak-runtime-link", "Facebook ↗");
+        link.href = item.permalink;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        actions.appendChild(link);
+        body.appendChild(actions);
+      }
+      card.append(poster, body);
+      grid.appendChild(card);
+    }
+    section.classList.remove("hidden");
+  } catch { /* Runtime feed must never break the static Fuwari page. */ }
+}
+function bootRuntimeFeeds() {
+  document.querySelectorAll("[data-ak-runtime-feed]").forEach(el => initRuntimeFeed(el));
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootRuntimeFeeds);
+else bootRuntimeFeeds();
+document.addEventListener("astro:page-load", bootRuntimeFeeds);
+</script>
+
+<style is:global>
+.ak-runtime-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.ak-runtime-card{overflow:hidden;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg)}
+.ak-runtime-poster{aspect-ratio:16/10;background:#0b1830;overflow:hidden}
+.ak-runtime-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.ak-runtime-body{padding:1rem}.ak-runtime-meta{font-size:.7rem;font-weight:850;color:var(--primary);letter-spacing:.08em}
+.ak-runtime-caption{margin-top:.45rem;line-height:1.6;font-size:.9rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.ak-runtime-actions{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:.9rem}
+.ak-runtime-link{font-size:.82rem;font-weight:750;color:var(--primary)}
+.ak-runtime-player{margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--line-color)}
+.ak-runtime-player-inner{width:min(100%,760px);height:min(78vh,820px);min-height:520px;margin:auto;background:#050a13;border-radius:1rem;overflow:hidden}
+.ak-runtime-player-inner iframe{width:100%;height:100%;border:0;display:block}
+@media(max-width:760px){.ak-runtime-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ak-runtime-player-inner{height:72vh;min-height:460px}}
+@media(max-width:480px){.ak-runtime-grid{grid-template-columns:1fr}}
+</style>

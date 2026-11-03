@@ -1,5 +1,6 @@
 ---
 import MainGridLayout from "../layouts/MainGridLayout.astro";
+import FacebookRuntimeFeed from "../components/FacebookRuntimeFeed.astro";
 
 const reels = [
 	{
@@ -35,6 +36,7 @@ const reels = [
     <p class="text-75 text-sm mb-4" data-ak-vi="Video được phát từ Facebook. Facebook có thể sử dụng cookie khi trình phát được tải." data-ak-en="This video is played from Facebook. Facebook may use cookies when the player loads.">Video được phát từ Facebook. Facebook có thể sử dụng cookie khi trình phát được tải.</p>
     <div class="ak-reel-embed" id="ak-reel-embed"></div>
   </div>
+  <FacebookRuntimeFeed mode="reels" />
 </MainGridLayout>
 <script>
 document.addEventListener("click",(e)=>{

@@ -2,6 +2,7 @@
 import type { GetStaticPaths } from "astro";
 import Pagination from "../components/control/Pagination.astro";
 import PostPage from "../components/PostPage.astro";
+import FacebookRuntimeFeed from "../components/FacebookRuntimeFeed.astro";
 import { PAGE_SIZE } from "../constants/constants";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
 import { getSortedPosts } from "../utils/content-utils";
@@ -25,5 +26,6 @@ const len = page.data.length;
         <div class="ak-actions"><a href="/reels/"><span data-ak-vi="Khám phá Video AI" data-ak-en="Explore AI videos">Khám phá Video AI</span></a><a href="/about/"><span data-ak-vi="Về Anh Khôi" data-ak-en="About Anh Khoi">Về Anh Khôi</span></a></div>
     </section>}
     <PostPage page={page}></PostPage>
+    {page.currentPage === 1 && <FacebookRuntimeFeed mode="home" />}
     <Pagination class="mx-auto onload-animation" page={page} style={`animation-delay: calc(var(--content-delay) + ${(len)*50}ms)`}></Pagination>
 </MainGridLayout>
