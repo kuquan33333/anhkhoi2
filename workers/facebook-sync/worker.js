@@ -270,7 +270,7 @@ async function cacheImage(env, sourceUrl, fingerprint) {
 }
 
 async function upsertItem(env, candidate, details, sourceUrl, status) {
-  const permalink = details?.canonical || candidate.permalink;
+  const permalink = candidate.permalink || details?.canonical;
   const facebookId = candidate.facebookId || facebookContentId(permalink);
   const fingerprint = await sha256Hex(permalink);
   const sourceKey = candidate.permalink;
@@ -288,6 +288,7 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
     sourceUrl,
     viewLabel: candidate.viewLabel || null,
     title: details?.title || "",
+    canonicalUrl: details?.canonical || null,
     video: details?.video || "",
   };
   const rawJson = JSON.stringify(rawObject).slice(0, 50000);
