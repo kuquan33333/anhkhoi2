@@ -150,6 +150,85 @@ async function browserContent(env, url) {
   return payload.result;
 }
 
+let nextCdpCommandId = 0;
+
+function sendCdpCommand(socket, method, params = {}) {
+  return new Promise((resolve, reject) => {
+    const id = ++nextCdpCommandId;
+    const timeout = setTimeout(() => { cleanup(); reject(new Error('CDP command timed out: ' + method)); }, 30000);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      socket.removeEventListener('message', onMessage);
+      socket.removeEventListener('close', onClose);
+    };
+    const onClose = () => { cleanup(); reject(new Error('CDP connection closed: ' + method)); };
+    const onMessage = event => {
+      let message;
+      try { message = JSON.parse(event.data); } catch { return; }
+      if (message.id !== id) return;
+      cleanup();
+      if (message.error) reject(new Error(message.error.message || 'CDP error'));
+      else resolve(message.result || {});
+    };
+    socket.addEventListener('message', onMessage);
+    socket.addEventListener('close', onClose);
+    try { socket.send(JSON.stringify({ id, method, params })); }
+    catch (error) { cleanup(); reject(error); }
+  });
+}
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function browserScrollContent(env, url, maxScrolls = 8) {
+  const connection = await env.BROWSER.launch();
+  const response = await connection.webSocket.fetch('https://browser-binding.invalid', {
+    headers: { Upgrade: 'websocket' },
+  });
+  if (!response.webSocket) {
+    await env.BROWSER.closeSession(connection.sessionId);
+    throw new Error('Browser Run did not return a WebSocket');
+  }
+
+  const socket = response.webSocket;
+  socket.accept();
+  try {
+    await sendCdpCommand(socket, 'Page.enable');
+    await sendCdpCommand(socket, 'Runtime.enable');
+    await sendCdpCommand(socket, 'Page.navigate', { url });
+    await delay(3500);
+
+    let stable = 0;
+    let previousCount = 0;
+    const limit = Math.min(Math.max(Number(maxScrolls) || 8, 1), 20);
+    for (let i = 0; i < limit; i++) {
+      const evaluated = await sendCdpCommand(socket, 'Runtime.evaluate', {
+        expression: "(() => { const reels=document.querySelectorAll('a[aria-label=\\\"Reel tile preview\\\"]' ).length; const height=Math.max(document.body?.scrollHeight||0,document.documentElement?.scrollHeight||0); window.scrollTo(0,height); return {reels,height}; })()",
+        returnByValue: true,
+        awaitPromise: true,
+      });
+      const value = evaluated?.result?.value || {};
+      const count = Number(value.reels || 0);
+      stable = count <= previousCount ? stable + 1 : 0;
+      previousCount = Math.max(previousCount, count);
+      if (stable >= 3) break;
+      await delay(1300);
+    }
+
+    await delay(1200);
+    const evaluated = await sendCdpCommand(socket, 'Runtime.evaluate', {
+      expression: 'document.documentElement.outerHTML',
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    const html = evaluated?.result?.value;
+    if (typeof html !== 'string' || html.length < 1000) throw new Error('Scrolled browser returned empty HTML');
+    return html;
+  } finally {
+    try { socket.close(); } catch {}
+    try { await env.BROWSER.closeSession(connection.sessionId); } catch {}
+  }
+}
+
 function facebookContentId(url) {
   try {
     const u = new URL(url);
@@ -300,7 +379,7 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   ).bind(sourceKey, facebookId, facebookId).first();
 
   let r2Key = existing?.r2_thumbnail_key || null;
-  if (thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
+  if (details && thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
 
   let previousRaw = {};
   try { previousRaw = JSON.parse(existing?.raw_json || "{}"); } catch {}
@@ -418,7 +497,8 @@ async function sync(env, trigger = "cron") {
   const shadow = (await setting(env, "facebook_shadow_mode", "true")) === "true";
   const autoPublish = (await setting(env, "facebook_auto_publish", "true")) === "true";
   const itemStatus = shadow ? "shadow" : (autoPublish ? "published" : "draft");
-  const maxItems = Math.min(Math.max(Number(await setting(env, "crawler_max_items_per_run", String(DEFAULT_LIMIT))) || DEFAULT_LIMIT, 1), 50);
+  const maxItems = Math.min(Math.max(Number(await setting(env, "crawler_max_items_per_run", String(DEFAULT_LIMIT))) || DEFAULT_LIMIT, 1), 100);
+  const maxScrolls = Math.min(Math.max(Number(await setting(env, "crawler_max_scrolls", "8")) || 8, 1), 20);
 
   let sources;
   if (trigger === "cron") {
@@ -445,7 +525,13 @@ async function sync(env, trigger = "cron") {
   for (const source of sources) {
     if (!source) continue;
     try {
-      let html = await browserContent(env, source);
+      let html;
+      if (source === reels) {
+        try { html = await browserScrollContent(env, source, maxScrolls); }
+        catch { html = await browserContent(env, source); }
+      } else {
+        html = await browserContent(env, source);
+      }
       let body = stripTags(html).slice(0, 15000);
       let found = discoverFromHtml(html, source);
       if (looksBlocked(body) && found.length === 0 && trigger !== "cron") {
@@ -467,8 +553,15 @@ async function sync(env, trigger = "cron") {
     }
   }
 
-  const candidates = [...all.values()].slice(0, maxItems);
-  discovered = candidates.length;
+  const discoveredCandidates = [...all.values()];
+  discovered = discoveredCandidates.length;
+  const knownRows = await env.DB.prepare(
+    "SELECT facebook_id FROM facebook_items WHERE facebook_id IS NOT NULL"
+  ).all();
+  const knownIds = new Set((knownRows.results || []).map(row => String(row.facebook_id)));
+  const candidates = discoveredCandidates
+    .sort((a, b) => Number(knownIds.has(a.facebookId || "")) - Number(knownIds.has(b.facebookId || "")))
+    .slice(0, maxItems);
   // Enrich only a small number of items per run to stay under Browser Run limits.
   // Existing shadow items with missing caption/thumbnail are progressively enriched.
   const detailBudget = 0;
