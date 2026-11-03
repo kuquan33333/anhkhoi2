@@ -477,9 +477,22 @@ async function enrichPendingBatch(env, runId, itemStatus) {
   for (const row of pending) {
     try {
       let details = await detailHttp(row.permalink);
-      if (!details && !browserFallbackUsed) {
+      const usefulText = !!(
+        details?.description ||
+        (details?.title && !/^facebook(?:\s|$)/i.test(details.title.trim()))
+      );
+      if (!usefulText && !browserFallbackUsed) {
         browserFallbackUsed = true;
-        details = detailFromHtml(await browserContent(env, row.permalink), row.permalink);
+        const browserDetails = detailFromHtml(await browserContent(env, row.permalink), row.permalink);
+        details = {
+          canonical: browserDetails.canonical || details?.canonical || row.permalink,
+          title: browserDetails.title || details?.title || "",
+          description: browserDetails.description || details?.description || "",
+          image: browserDetails.image || details?.image || "",
+          video: browserDetails.video || details?.video || "",
+          publishedAt: browserDetails.publishedAt || details?.publishedAt || null,
+          blocked: browserDetails.blocked && !details,
+        };
       }
       if (!details) {
         errors++;
