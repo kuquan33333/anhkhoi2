@@ -30,7 +30,7 @@ export async function hashPassword(password) {
   const salt = new Uint8Array(16);
   crypto.getRandomValues(salt);
   const digest = await derivePassword(password, salt, PBKDF2_ITERATIONS);
-  return \`pbkdf2_sha256$\${PBKDF2_ITERATIONS}$\${bytesToBase64Url(salt)}$\${digest}\`;
+  return "pbkdf2_sha256$" + PBKDF2_ITERATIONS + "$" + bytesToBase64Url(salt) + "$" + digest;
 }
 
 export async function ipKey(request) {
