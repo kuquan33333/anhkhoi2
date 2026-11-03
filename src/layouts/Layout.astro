@@ -2,6 +2,9 @@
 import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
+import "@fontsource/roboto/vietnamese-400.css";
+import "@fontsource/roboto/vietnamese-500.css";
+import "@fontsource/roboto/vietnamese-700.css";
 
 import ConfigCarrier from "@components/ConfigCarrier.astro";
 import { profileConfig, siteConfig } from "@/config";
@@ -73,7 +76,7 @@ const bannerOffset =
 ---
 
 <!DOCTYPE html>
-<html lang={siteLang} class="bg-[var(--page-bg)] transition text-[14px] md:text-[16px]"
+<html lang={siteLang} data-ak-locale="vi" class="bg-[var(--page-bg)] transition text-[14px] md:text-[16px]"
 	  data-overlayscrollbars-initialize
 >
 	<head>
@@ -83,6 +86,8 @@ const bannerOffset =
 		<meta charset="UTF-8" />
 		<meta name="description" content={description || pageTitle}>
 		<meta name="author" content={profileConfig.name}>
+		<meta property="og:image" content={new URL("/assets/anhkhoi-cover.webp",Astro.site).toString()}>
+		<meta name="theme-color" content="#1853b9">
 
 		<meta property="og:site_name" content={siteConfig.title}>
 		<meta property="og:url" content={Astro.url}>
@@ -193,6 +198,62 @@ const bannerOffset =
 	}
 }
 </style>
+
+
+<script>
+import {vi} from "../i18n/languages/vi";
+import {en} from "../i18n/languages/en";
+const translations = Object.keys(vi).map(key=>[vi[key as keyof typeof vi],en[key as keyof typeof en]]);
+const viToEn = new Map(translations);
+const enToVi = new Map(translations.map(([a,b])=>[b,a]));
+type Lang = "vi" | "en";
+const STORAGE_KEY="anhkhoi.language";
+function readLanguage():Lang {
+ try { return localStorage.getItem(STORAGE_KEY)==="en"?"en":"vi"; } catch { return "vi"; }
+}
+function applyLanguage(lang:Lang) {
+ document.documentElement.lang=lang;
+ document.documentElement.dataset.akLocale=lang;
+ document.querySelectorAll<HTMLElement>("[data-ak-vi][data-ak-en]").forEach(el=>{
+   el.textContent=lang==="en"?el.dataset.akEn||"":el.dataset.akVi||"";
+ });
+ document.querySelectorAll<HTMLElement>("[data-ak-placeholder-vi][data-ak-placeholder-en]").forEach(el=>{
+   el.setAttribute("placeholder",lang==="en"?el.dataset.akPlaceholderEn||"":el.dataset.akPlaceholderVi||"");
+ });
+ document.querySelectorAll<HTMLButtonElement>("[data-ak-lang-button]").forEach(button=>{
+   const selected=button.dataset.akLangButton===lang;
+   button.setAttribute("aria-pressed",String(selected));
+   button.classList.toggle("ak-lang-current",selected);
+ });
+ const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+ const nodes:Text[]=[];
+ while(walker.nextNode()){const node=walker.currentNode as Text;
+   const parent=node.parentElement;
+   if (!parent || parent.closest("script,style,[data-ak-vi],[data-ak-en],.custom-md,.ak-lang-content")) continue;
+   nodes.push(node);
+ }
+ const translate=lang==="en"?viToEn:enToVi;
+ for(const node of nodes){
+   const value=node.textContent||""; const trimmed=value.trim();
+   const translated=translate.get(trimmed);
+   if(translated){node.textContent=value.replace(trimmed,translated);}
+ }
+}
+function setLanguage(lang:Lang) {
+ try{localStorage.setItem(STORAGE_KEY,lang)}catch{}
+ applyLanguage(lang);
+}
+document.addEventListener("click",event=>{
+ const target=event.target as Element|null;
+ const button=target?.closest<HTMLButtonElement>("[data-ak-lang-button]");
+ const lang=button?.dataset.akLangButton;
+ if(lang==="vi"||lang==="en")setLanguage(lang);
+});
+document.addEventListener("DOMContentLoaded",()=>applyLanguage(readLanguage()));
+document.addEventListener("swup:contentReplaced",()=>applyLanguage(readLanguage()));
+document.addEventListener("swup:page:view",()=>applyLanguage(readLanguage()));
+if(document.readyState!=="loading")applyLanguage(readLanguage());
+</script>
 
 <script>
 import 'overlayscrollbars/overlayscrollbars.css';

@@ -18,6 +18,7 @@ interface Post {
 	slug: string;
 	data: {
 		title: string;
+        titleEn?: string;
 		tags: string[];
 		category?: string;
 		published: Date;
@@ -106,7 +107,7 @@ onMount(async () => {
             {#each group.posts as post}
                 <a
                         href={getPostUrlBySlug(post.slug)}
-                        aria-label={post.data.title}
+                        aria-label=<span data-ak-vi={post.data.title} data-ak-en={post.data.titleEn || post.data.title}>{post.data.title}</span>
                         class="group btn-plain !block h-10 w-full rounded-lg hover:text-[initial]"
                 >
                     <div class="flex flex-row justify-start items-center h-full">

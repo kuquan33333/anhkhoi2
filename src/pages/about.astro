@@ -1,25 +1,26 @@
 ---
-
-import { getEntry, render } from "astro:content";
-import Markdown from "@components/misc/Markdown.astro";
-import I18nKey from "../i18n/i18nKey";
-import { i18n } from "../i18n/translation";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
-
-const aboutPost = await getEntry("spec", "about");
-
-if (!aboutPost) {
-	throw new Error("About page content not found");
-}
-
-const { Content } = await render(aboutPost);
+const facebook = "https://www.facebook.com/profile.php?id=61595505020148";
 ---
-<MainGridLayout title={i18n(I18nKey.about)} description={i18n(I18nKey.about)}>
-    <div class="flex w-full rounded-[var(--radius-large)] overflow-hidden relative min-h-32">
-        <div class="card-base z-10 px-9 py-6 relative w-full ">
-            <Markdown class="mt-2">
-                <Content />
-            </Markdown>
-        </div>
+<MainGridLayout title="Giới thiệu Anh Khôi" description="Sáng tạo AI, video và công nghệ cùng Anh Khôi.">
+  <section class="card-base px-7 md:px-10 py-8 ak-about-body">
+    <div class="ak-lang-vi">
+      <p class="text-sm font-bold text-[var(--primary)]">ANH KHOI · AI MEDIA</p>
+      <h1>Chào bạn, mình là Anh Khôi.</h1>
+      <p>Mình yêu thích sáng tạo video bằng AI, tìm hiểu công nghệ mới và chia sẻ những câu chuyện thú vị đang được mọi người quan tâm. Đây là không gian riêng để mình lưu lại những ý tưởng, trải nghiệm và góc nhìn của mình.</p>
+      <h2>Website này có gì?</h2>
+      <p>Bạn sẽ tìm thấy video AI, bài viết về công nghệ, những câu chuyện đáng chú ý và các ý tưởng sáng tạo hình ảnh. Mình ưu tiên cách kể dễ hiểu, gần gũi và có nguồn rõ ràng khi chia sẻ thông tin thời sự.</p>
+      <h2>Cùng kết nối nhé!</h2>
+      <p>Bạn có thể xem những nội dung mới nhất trên <a href={facebook} target="_blank" rel="noopener noreferrer">Facebook Anh Khôi</a> hoặc ghé <a href="/reels/">thư viện Reels</a> ngay trên website.</p>
     </div>
+    <div class="ak-lang-en">
+      <p class="text-sm font-bold text-[var(--primary)]">ANH KHOI · AI MEDIA</p>
+      <h1>Hi, I'm Anh Khoi.</h1>
+      <p>I enjoy creating AI videos, exploring emerging technology, and sharing stories that spark curiosity. This website is my own space for ideas, experiments, and perspectives worth passing along.</p>
+      <h2>What will you find here?</h2>
+      <p>AI-generated videos, technology articles, noteworthy stories, and visual experiments. I aim to keep things engaging and easy to follow, while citing reliable sources whenever I cover current events.</p>
+      <h2>Let's stay in touch.</h2>
+      <p>Catch my latest work on <a href={facebook} target="_blank" rel="noopener noreferrer">Anh Khoi's Facebook</a>, or browse the <a href="/reels/">Reels collection</a> here on the site.</p>
+    </div>
+  </section>
 </MainGridLayout>
