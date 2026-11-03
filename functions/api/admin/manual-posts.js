@@ -23,13 +23,20 @@ export async function onRequestPost({ request, env }) {
   if (!title || !slug) return json({ ok: false, error: "title_required" }, 400);
   const status = body?.status === "published" ? "published" : "draft";
   const publishedAt = status === "published" ? new Date().toISOString() : null;
+  const language = body?.language === "en" ? "en" : "vi";
+  const tags = Array.isArray(body?.tags)
+    ? body.tags.map(x => String(x).trim()).filter(Boolean).slice(0, 20)
+    : [];
+  const cover = typeof body?.coverR2Key === "string" && /^admin\/[A-Za-z0-9/_\-.]+$/.test(body.coverR2Key)
+    ? body.coverR2Key
+    : null;
   try {
     const r = await env.DB.prepare(
       "INSERT INTO manual_posts(slug,title,excerpt,body_markdown,language,category,tags_json,cover_r2_key,status,published_at) VALUES(?,?,?,?,?,?,?,?,?,?)"
     ).bind(
-      slug, title, String(body?.excerpt || ""), String(body?.bodyMarkdown || ""), String(body?.language || "vi"),
-      body?.category ? String(body.category) : null, JSON.stringify(Array.isArray(body?.tags) ? body.tags : []),
-      body?.coverR2Key ? String(body.coverR2Key) : null, status, publishedAt
+      slug, title, String(body?.excerpt || "").slice(0, 1000), String(body?.bodyMarkdown || ""), language,
+      body?.category ? String(body.category).slice(0, 80) : null, JSON.stringify(tags),
+      cover, status, publishedAt
     ).run();
     return json({ ok: true, id: r.meta?.last_row_id, slug });
   } catch (error) {
