@@ -203,7 +203,7 @@ const bannerOffset =
 <script>
 import {vi} from "../i18n/languages/vi";
 import {en} from "../i18n/languages/en";
-const translations = Object.keys(vi).map(key=>[vi[key as keyof typeof vi],en[key as keyof typeof en]]);
+const translations: Array<[string,string]> = Object.keys(vi).map(key=>[vi[key as keyof typeof vi],en[key as keyof typeof en]]);
 const viToEn = new Map(translations);
 const enToVi = new Map(translations.map(([a,b])=>[b,a]));
 type Lang = "vi" | "en";

@@ -107,7 +107,7 @@ onMount(async () => {
             {#each group.posts as post}
                 <a
                         href={getPostUrlBySlug(post.slug)}
-                        aria-label=<span data-ak-vi={post.data.title} data-ak-en={post.data.titleEn || post.data.title}>{post.data.title}</span>
+                        aria-label={post.data.title}
                         class="group btn-plain !block h-10 w-full rounded-lg hover:text-[initial]"
                 >
                     <div class="flex flex-row justify-start items-center h-full">
@@ -134,7 +134,7 @@ onMount(async () => {
                      group-hover:translate-x-1 transition-all group-hover:text-[var(--primary)]
                      text-75 pr-8 whitespace-nowrap overflow-ellipsis overflow-hidden"
                         >
-                            {post.data.title}
+                            <span data-ak-vi={post.data.title} data-ak-en={post.data.titleEn || post.data.title}>{post.data.title}</span>
                         </div>
 
                         <!-- tag list -->
