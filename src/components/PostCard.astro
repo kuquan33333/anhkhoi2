@@ -51,7 +51,7 @@ const { remarkPluginFrontmatter } = await entry.render();
         before:w-1 before:h-5 before:rounded-md before:bg-[var(--primary)]
         before:absolute before:top-[35px] before:left-[18px] before:hidden md:before:block
         ">
-            {title}
+            <span data-ak-vi={title} data-ak-en={entry.data.titleEn || title}>{title}</span>
             <Icon class="inline text-[2rem] text-[var(--primary)] md:hidden translate-y-0.5 absolute" name="material-symbols:chevron-right-rounded" ></Icon>
             <Icon class="text-[var(--primary)] text-[2rem] transition hidden md:inline absolute translate-y-0.5 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0" name="material-symbols:chevron-right-rounded"></Icon>
         </a>
@@ -61,7 +61,7 @@ const { remarkPluginFrontmatter } = await entry.render();
 
         <!-- description -->
         <div class:list={["transition text-75 mb-3.5 pr-4", {"line-clamp-2 md:line-clamp-1": !description}]}>
-            { description || remarkPluginFrontmatter.excerpt }
+            <span data-ak-vi={description || remarkPluginFrontmatter.excerpt} data-ak-en={entry.data.descriptionEn || description || remarkPluginFrontmatter.excerpt}>{ description || remarkPluginFrontmatter.excerpt }</span>
         </div>
 
         <!-- word count and read time  -->
