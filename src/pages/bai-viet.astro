@@ -1,0 +1,75 @@
+---
+import MainGridLayout from "../layouts/MainGridLayout.astro";
+---
+<MainGridLayout title="Bài viết · Anh Khôi AI Media" description="Bài viết do Anh Khôi đăng trực tiếp từ trang quản trị.">
+  <article id="ak-live-article" class="card-base p-7 md:p-9">
+    <div id="ak-live-loading" class="text-75">Đang tải bài viết…</div>
+    <div id="ak-live-error" class="hidden">
+      <h1 class="text-2xl font-extrabold">Không tìm thấy bài viết</h1>
+      <p class="text-75 mt-3">Bài viết có thể chưa được xuất bản hoặc đã bị ẩn.</p>
+      <a href="/archive/" class="inline-block mt-4 font-bold text-[var(--primary)]">← Về mục Bài viết</a>
+    </div>
+    <div id="ak-live-content" class="hidden">
+      <div id="ak-live-meta" class="text-sm font-bold text-[var(--primary)]"></div>
+      <h1 id="ak-live-title" class="text-3xl md:text-4xl font-extrabold leading-tight mt-2"></h1>
+      <p id="ak-live-excerpt" class="text-75 leading-8 mt-4"></p>
+      <div id="ak-live-body" class="ak-live-body mt-7"></div>
+      <div id="ak-live-tags" class="flex flex-wrap gap-2 mt-7"></div>
+    </div>
+  </article>
+</MainGridLayout>
+
+<script>
+import MarkdownIt from "markdown-it";
+const md = new MarkdownIt({html:false,linkify:true,breaks:true,typographer:true});
+const loading=document.getElementById("ak-live-loading");
+const error=document.getElementById("ak-live-error");
+const content=document.getElementById("ak-live-content");
+const title=document.getElementById("ak-live-title");
+const excerpt=document.getElementById("ak-live-excerpt");
+const meta=document.getElementById("ak-live-meta");
+const body=document.getElementById("ak-live-body");
+const tags=document.getElementById("ak-live-tags");
+
+async function loadLiveArticle(){
+  const slug=new URL(location.href).searchParams.get("slug")||"";
+  if(!slug){ loading?.classList.add("hidden"); error?.classList.remove("hidden"); return; }
+  try{
+    const r=await fetch("/api/manual-posts/"+encodeURIComponent(slug),{headers:{accept:"application/json"}});
+    if(!r.ok) throw new Error("not_found");
+    const data=await r.json();
+    const post=data.post;
+    if(!post) throw new Error("not_found");
+    if(title) title.textContent=post.title||"Bài viết";
+    if(excerpt){excerpt.textContent=post.excerpt||"";excerpt.classList.toggle("hidden",!post.excerpt);}
+    if(meta){
+      const date=post.published_at?new Intl.DateTimeFormat("vi-VN",{dateStyle:"long"}).format(new Date(post.published_at)):"";
+      meta.textContent=[post.category||"Bài viết",date].filter(Boolean).join(" · ");
+    }
+    if(body) body.innerHTML=md.render(post.body_markdown||"");
+    if(tags){
+      tags.replaceChildren();
+      for(const t of Array.isArray(post.tags)?post.tags:[]){
+        const span=document.createElement("span");span.className="px-3 py-1 rounded-full text-xs font-bold bg-[var(--btn-plain-bg-hover)]";span.textContent="#"+t;tags.append(span);
+      }
+    }
+    document.title=(post.title||"Bài viết")+" - Anh Khôi AI Media";
+    loading?.classList.add("hidden");content?.classList.remove("hidden");
+  }catch{
+    loading?.classList.add("hidden");error?.classList.remove("hidden");
+  }
+}
+loadLiveArticle();
+document.addEventListener("astro:page-load",loadLiveArticle);
+</script>
+
+<style is:global>
+.ak-live-body{line-height:1.85;font-size:1rem}
+.ak-live-body h1,.ak-live-body h2,.ak-live-body h3{font-weight:850;line-height:1.35;margin:1.6em 0 .65em}
+.ak-live-body h1{font-size:1.8rem}.ak-live-body h2{font-size:1.45rem}.ak-live-body h3{font-size:1.2rem}
+.ak-live-body p{margin:.9em 0}.ak-live-body ul,.ak-live-body ol{padding-left:1.4rem;margin:.9em 0}
+.ak-live-body ul{list-style:disc}.ak-live-body ol{list-style:decimal}
+.ak-live-body blockquote{border-left:3px solid var(--primary);padding-left:1rem;color:var(--text-75);margin:1rem 0}
+.ak-live-body a{color:var(--primary);text-decoration:underline}
+.ak-live-body code{padding:.15em .35em;border-radius:.35rem;background:var(--btn-plain-bg-hover)}
+</style>
