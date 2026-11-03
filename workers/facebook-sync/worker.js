@@ -81,9 +81,9 @@ function normalizeFacebookUrl(raw, base) {
 
 function classify(url) {
   const s = url.toLowerCase();
-  if (/\/reel\/\d+/.test(s)) return "reel";
-  if (/\/videos\/\d+/.test(s) || /\/watch/.test(s) || /[?&]v=\d+/.test(s)) return "video";
-  if (/photo\.php/.test(s) || /[?&]fbid=\d+/.test(s)) return "photo";
+  if (/\/reel\/\d{8,}/.test(s)) return "reel";
+  if (/\/videos\/\d{8,}/.test(s) || /[?&]v=\d{8,}/.test(s)) return "video";
+  if (/photo\.php/.test(s) && /[?&]fbid=\d{8,}/.test(s)) return "photo";
   if (/\/posts\//.test(s) || /story_fbid=/.test(s) || /\/story\.php/.test(s) || /permalink\.php/.test(s)) return "post";
   return "unknown";
 }
@@ -169,10 +169,10 @@ function discoverFromHtml(html, baseUrl) {
   }
 
   // Facebook often serializes public permalinks in page data even when a login overlay is rendered.
-  const absolute = /https?:\/\/(?:www\.|m\.)?facebook\.com\/(?:reel\/\d+|[^"'<>\\\s]+\/videos\/\d+|watch\/?\?[^"'<>\\\s]*v=\d+|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d+|story\.php\?[^"'<>\\\s]*story_fbid=\d+|permalink\.php\?[^"'<>\\\s]*story_fbid=\d+)/gi;
+  const absolute = /https?:\/\/(?:www\.|m\.)?facebook\.com\/(?:reel\/\d+|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d{8,}|story\.php\?[^"'<>\\\s]*story_fbid=\d{8,}|permalink\.php\?[^"'<>\\\s]*story_fbid=\d{8,})/gi;
   for (const match of clean.match(absolute) || []) addCandidate(seen, match, baseUrl);
 
-  const relative = /(?:href=["']?)?(\/(?:reel\/\d+|[^"'<>\\\s]+\/videos\/\d+|watch\/?\?[^"'<>\\\s]*v=\d+|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d+|story\.php\?[^"'<>\\\s]*story_fbid=\d+|permalink\.php\?[^"'<>\\\s]*story_fbid=\d+))/gi;
+  const relative = /(?:href=["']?)?(\/(?:reel\/\d+|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d{8,}|story\.php\?[^"'<>\\\s]*story_fbid=\d{8,}|permalink\.php\?[^"'<>\\\s]*story_fbid=\d{8,}))/gi;
   let m;
   while ((m = relative.exec(clean)) !== null) addCandidate(seen, m[1], baseUrl);
 
@@ -335,14 +335,19 @@ async function sync(env, trigger = "cron") {
 
   const candidates = [...all.values()].slice(0, maxItems);
   discovered = candidates.length;
-  const detailBudget = trigger === "admin" ? 2 : 0;
+  // Enrich only a small number of items per run to stay under Browser Run limits.
+  // Existing shadow items with missing caption/thumbnail are progressively enriched.
+  const detailBudget = trigger === "admin" ? 2 : 1;
   let detailed = 0;
 
   for (const candidate of candidates) {
     try {
-      const exists = await env.DB.prepare("SELECT id FROM facebook_items WHERE source_key=? LIMIT 1").bind(candidate.permalink).first();
+      const exists = await env.DB.prepare(
+        "SELECT id,caption,thumbnail_url,published_at FROM facebook_items WHERE source_key=? LIMIT 1"
+      ).bind(candidate.permalink).first();
       let details = null;
-      if (!exists && detailed < detailBudget) {
+      const needsDetails = !exists || !exists.caption || !exists.thumbnail_url || !exists.published_at;
+      if (needsDetails && detailed < detailBudget) {
         try { details = await detail(env, candidate.permalink); detailed++; } catch (e) {
           await logError(env, runId, "detail", candidate.permalink, "DETAIL_ERROR", String(e));
           errors++;
