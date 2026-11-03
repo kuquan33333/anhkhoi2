@@ -337,8 +337,26 @@ async function detailHttp(url) {
 
 async function detail(env, url) {
   const direct = await detailHttp(url);
-  if (direct) return direct;
-  return detailFromHtml(await browserContent(env, url), url);
+  const usefulDirectText = !!(
+    direct?.description ||
+    (direct?.title && !/^facebook(?:\s|$)/i.test(direct.title.trim()))
+  );
+  if (usefulDirectText) return direct;
+
+  try {
+    const browser = detailFromHtml(await browserContent(env, url), url);
+    return {
+      canonical: browser.canonical || direct?.canonical || url,
+      title: browser.title || direct?.title || "",
+      description: browser.description || direct?.description || "",
+      image: browser.image || direct?.image || "",
+      video: browser.video || direct?.video || "",
+      publishedAt: browser.publishedAt || direct?.publishedAt || null,
+      blocked: browser.blocked && !direct,
+    };
+  } catch {
+    return direct;
+  }
 }
 
 async function cacheImage(env, sourceUrl, fingerprint) {
