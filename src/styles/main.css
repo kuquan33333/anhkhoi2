@@ -161,8 +161,8 @@ body { font-family: Roboto,"Segoe UI",system-ui,sans-serif; text-rendering:optim
 html:not([data-ak-locale="en"]) .ak-lang-en{display:none!important}
 html[data-ak-locale="en"] .ak-lang-vi{display:none!important}
 .ak-home-lead{padding:1.7rem 2rem;margin-bottom:1rem;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg)}
-.ak-home-lead h1{font-size:clamp(1.35rem,3vw,2.1rem);font-weight:850;line-height:1.36;letter-spacing:-.035em;margin:.2rem 0 .65rem}
-.ak-home-lead p{color:var(--text-50);line-height:1.9;max-width:43rem;font-size:.94rem}
+.ak-home-lead h1{font-size:clamp(1.35rem,3vw,2.1rem);font-weight:850;line-height:1.36;letter-spacing:-.035em;color:#172336;margin:.2rem 0 .65rem}
+.ak-home-lead p{color:#57657a;line-height:1.9;max-width:43rem;font-size:.94rem}
 .ak-home-lead .ak-actions{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.3rem}
 .ak-home-lead .ak-actions a,.ak-cta{display:inline-flex;align-items:center;justify-content:center;border-radius:.65rem;padding:.6rem 1rem;font-size:.85rem;font-weight:750;background:var(--primary);color:#fff;transition:transform .2s}
 .ak-home-lead .ak-actions a:hover,.ak-cta:hover{transform:translateY(-2px)}
@@ -182,3 +182,10 @@ html[data-ak-locale="en"] .ak-lang-vi{display:none!important}
 .ak-about-body p{margin:1rem 0}
 .ak-about-body a{color:var(--primary);font-weight:750}
 @media(max-width:640px){.ak-lang-switch{margin-right:3px;padding:4px 5px}.ak-lang-switch button{min-width:22px;font-size:11px}.ak-home-lead{padding:1.3rem}.ak-reels-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Make the custom intro card follow Fuwari's light/dark theme. */
+html.dark .ak-home-lead{color:#f2f6ff;background:var(--card-bg);border-color:var(--line-color)}
+html.dark .ak-home-lead h1{color:#f6f9ff}
+html.dark .ak-home-lead p{color:#b7c4d8}
+html.dark .ak-home-lead .ak-actions a:first-child{color:#ffffff}
+html.dark .ak-home-lead .ak-actions a:nth-child(2){color:var(--btn-content)}

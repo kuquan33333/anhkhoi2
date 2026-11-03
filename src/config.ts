@@ -22,7 +22,7 @@ export const siteConfig: SiteConfig = {
 		},
 	},
 	toc: { enable: true, depth: 2 },
-	favicon: [{ src: "/favicon.svg", sizes: "any" }],
+	favicon: [{ src: "/favicon-ak.png", sizes: "64x64" }],
 };
 export const navBarConfig: NavBarConfig = {
 	links: [
