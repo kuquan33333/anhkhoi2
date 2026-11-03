@@ -405,11 +405,11 @@ async function sync(env, trigger = "cron") {
     const minute = now.getUTCMinutes();
     const hour = now.getUTCHours();
 
-    if (minute < 30 && hour % 6 !== 0) {
+    if (minute < 30 && hour % 6 !== 3) {
       return enrichOnePending(env, runId, itemStatus);
     }
 
-    // Probe the normal profile only every 6 hours because Facebook currently
+    // Probe the normal profile every 6 hours (03/09/15/21 UTC) because Facebook currently
     // shows a login wall to unauthenticated browsers. Other :00 runs enrich metadata.
     sources = [minute < 30 ? profile : reels].filter(Boolean);
   } else {
