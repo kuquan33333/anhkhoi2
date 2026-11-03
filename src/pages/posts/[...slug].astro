@@ -79,7 +79,7 @@ const jsonLd = {
                     md:before:w-1 before:h-5 before:rounded-md before:bg-[var(--primary)]
                     before:absolute before:top-[0.75rem] before:left-[-1.125rem]
                 ">
-                    {entry.data.title}
+                    <span data-ak-vi={entry.data.title} data-ak-en={entry.data.titleEn || entry.data.title}>{entry.data.title}</span>
                 </div>
             </div>
 

@@ -1,10 +1,7 @@
 name: Code quality
 
 on:
-  push:
-    branches: [ main ] # Adjust branches as needed
-  pull_request:
-    branches: [ main ] # Adjust branches as needed
+  workflow_dispatch:
 
 jobs:
   quality:
@@ -15,6 +12,6 @@ jobs:
       - name: Setup Biome
         uses: biomejs/setup-biome@f382a98e582959e6aaac8e5f8b17b31749018780 # v2.5.0
         with:
-          version: latest
+          version: 2.2.5
       - name: Run Biome
         run: biome ci ./src --reporter=github

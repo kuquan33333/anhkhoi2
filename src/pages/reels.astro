@@ -1,0 +1,62 @@
+---
+import MainGridLayout from "../layouts/MainGridLayout.astro";
+
+const reels = [
+	{
+		url: "https://www.facebook.com/reel/2691758154613464/",
+		titleVi: "Reel mới từ Facebook Anh Khôi",
+		titleEn: "Featured Reel from Anh Khoi",
+		descVi: "Xem video trực tiếp qua trình phát Facebook hoặc mở bài đăng gốc.",
+		descEn: "Watch via Facebook's player or open the original Reel.",
+	},
+];
+---
+<MainGridLayout title="Video AI & Facebook Reels" description="Thư viện Facebook Reels, video AI và sáng tạo hình ảnh của Anh Khôi.">
+  <section class="card-base p-7 md:p-9 mb-4">
+    <span class="text-sm font-bold text-[var(--primary)]">REELS / AI STORIES</span>
+    <h1 class="text-3xl font-extrabold mt-2 mb-3" data-ak-vi="Khám phá video cùng Anh Khôi" data-ak-en="Discover videos with Anh Khoi">Khám phá video cùng Anh Khôi</h1>
+    <p class="text-75 leading-8" data-ak-vi="Những thước phim AI và các câu chuyện nổi bật từ Facebook của mình. Video công khai sẽ được mở trên trình phát Facebook khi bạn chọn xem." data-ak-en="AI-created visuals and interesting stories from my Facebook profile. Public Reels load through Facebook only when you choose to play them.">Những thước phim AI và các câu chuyện nổi bật từ Facebook của mình. Video công khai sẽ được mở trên trình phát Facebook khi bạn chọn xem.</p>
+  </section>
+  <div class="ak-reels-grid">
+    {reels.map((reel)=><article class="ak-reel">
+      <div class="ak-poster">
+        <img src="/assets/anhkhoi-cover.webp" alt="Ảnh bìa Facebook Anh Khôi" loading="lazy"/>
+        <span class="ak-play" aria-hidden="true">▶</span>
+      </div>
+      <div class="ak-reel-desc">
+        <h3 data-ak-vi={reel.titleVi} data-ak-en={reel.titleEn}>{reel.titleVi}</h3>
+        <p data-ak-vi={reel.descVi} data-ak-en={reel.descEn}>{reel.descVi}</p>
+        <button class="ak-cta mt-3" type="button" data-reel-url={reel.url}><span data-ak-vi="Phát Reel" data-ak-en="Play Reel">Phát Reel</span></button>
+        <a class="mt-3 block text-sm font-medium text-[var(--primary)]" href={reel.url} target="_blank" rel="noopener noreferrer"><span data-ak-vi="Mở trên Facebook ↗" data-ak-en="Open on Facebook ↗">Mở trên Facebook ↗</span></a>
+      </div>
+    </article>)}
+  </div>
+  <div id="ak-reel-player" role="region" aria-label="Facebook Reels" class="card-base p-6 mt-4 hidden">
+    <p class="text-75 text-sm mb-4" data-ak-vi="Video được phát từ Facebook. Facebook có thể sử dụng cookie khi trình phát được tải." data-ak-en="This video is played from Facebook. Facebook may use cookies when the player loads.">Video được phát từ Facebook. Facebook có thể sử dụng cookie khi trình phát được tải.</p>
+    <div class="ak-reel-embed" id="ak-reel-embed"></div>
+  </div>
+</MainGridLayout>
+<script>
+document.addEventListener("click",(e)=>{
+ const target=e.target as Element|null;
+ const button=target?.closest<HTMLButtonElement>("[data-reel-url]");
+ if(!button)return;
+ const href=button.dataset.reelUrl;
+ if(!href)return;
+ try{
+  const candidate=new URL(href);
+  if(candidate.protocol!=="https:" || !["www.facebook.com","facebook.com"].includes(candidate.hostname) || !candidate.pathname.startsWith("/reel/"))return;
+  const url=new URL("https://www.facebook.com/plugins/video.php");
+  url.searchParams.set("href",candidate.toString());
+  url.searchParams.set("show_text","false");
+  url.searchParams.set("width","420");
+  const iframe=document.createElement("iframe");
+  iframe.src=url.toString();iframe.title="Facebook Reel - Anh Khôi";
+  iframe.loading="lazy";iframe.allow="encrypted-media; clipboard-write; fullscreen; picture-in-picture";iframe.setAttribute("allowfullscreen","");
+  const region=document.getElementById("ak-reel-player");const embed=document.getElementById("ak-reel-embed");
+  if(!region||!embed)return;
+  embed.replaceChildren(iframe);region.classList.remove("hidden");
+  region.scrollIntoView({behavior:"smooth",block:"center"});
+ }catch{ /* Link không hợp lệ: vẫn còn nút mở Facebook. */ }
+});
+</script>

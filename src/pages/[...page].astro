@@ -18,6 +18,12 @@ const len = page.data.length;
 ---
 
 <MainGridLayout>
+    {page.currentPage === 1 && <section class="ak-home-lead onload-animation" aria-label="Giới thiệu Anh Khôi AI Media">
+        <span class="font-bold text-sm text-[var(--primary)]">ANH KHOI · AI MEDIA</span>
+        <h1><span data-ak-vi="Chuyện mới, góc nhìn mới — khám phá cùng Anh Khôi." data-ak-en="New stories, fresh perspectives — explore with Anh Khoi.">Chuyện mới, góc nhìn mới — khám phá cùng Anh Khôi.</span></h1>
+        <p data-ak-vi="Video AI giàu cảm hứng, những câu chuyện đang được quan tâm và góc nhìn dễ hiểu về công nghệ. Mình chọn lọc và chia sẻ nội dung để mỗi lần ghé thăm đều có điều thú vị." data-ak-en="Thought-provoking AI videos, stories worth following, and accessible perspectives on technology. I curate and share content so there is always something interesting to discover.">Video AI giàu cảm hứng, những câu chuyện đang được quan tâm và góc nhìn dễ hiểu về công nghệ. Mình chọn lọc và chia sẻ nội dung để mỗi lần ghé thăm đều có điều thú vị.</p>
+        <div class="ak-actions"><a href="/reels/"><span data-ak-vi="Khám phá Video AI" data-ak-en="Explore AI videos">Khám phá Video AI</span></a><a href="/about/"><span data-ak-vi="Về Anh Khôi" data-ak-en="About Anh Khoi">Về Anh Khôi</span></a></div>
+    </section>}
     <PostPage page={page}></PostPage>
     <Pagination class="mx-auto onload-animation" page={page} style={`animation-delay: calc(var(--content-delay) + ${(len)*50}ms)`}></Pagination>
 </MainGridLayout>
