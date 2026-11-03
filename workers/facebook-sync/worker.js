@@ -161,14 +161,27 @@ function facebookContentId(url) {
   } catch { return null; }
 }
 
-function addCandidate(map, raw, baseUrl, text = "") {
+function addCandidate(map, raw, baseUrl, text = "", extra = {}) {
   const normalized = normalizeFacebookUrl(raw, baseUrl);
   if (!isCandidate(normalized)) return;
-  if (!map.has(normalized)) map.set(normalized, {
+  const incoming = {
     permalink: normalized,
     itemType: classify(normalized),
     facebookId: facebookContentId(normalized),
     anchorText: String(text || "").trim().slice(0, 1000),
+    thumbnailUrl: extra.thumbnailUrl || null,
+    viewLabel: extra.viewLabel || null,
+  };
+  const existing = map.get(normalized);
+  if (!existing) {
+    map.set(normalized, incoming);
+    return;
+  }
+  map.set(normalized, {
+    ...existing,
+    anchorText: existing.anchorText || incoming.anchorText,
+    thumbnailUrl: existing.thumbnailUrl || incoming.thumbnailUrl,
+    viewLabel: existing.viewLabel || incoming.viewLabel,
   });
 }
 
@@ -176,15 +189,30 @@ function discoverFromHtml(html, baseUrl) {
   const seen = new Map();
   const clean = unescapeFacebookHtml(html);
 
+  // Reel grid exposes permalink, thumbnail and public view count in one rendered page.
+  const reelTile = /<a\b[^>]*aria-label=["']Reel tile preview["'][^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let tile;
+  while ((tile = reelTile.exec(clean)) !== null) {
+    const inner = tile[2] || "";
+    const imgTag = (inner.match(/<img\b[^>]*>/i) || [])[0] || "";
+    const thumbnailUrl = attr(imgTag, "src") || null;
+    const visibleText = stripTags(inner);
+    const viewMatch = visibleText.match(/\b\d+(?:[.,]\d+)?\s*(?:K|M|B)?\b/i);
+    addCandidate(seen, tile[1], baseUrl, "", {
+      thumbnailUrl,
+      viewLabel: viewMatch ? viewMatch[0].replace(/\s+/g, "") : null,
+    });
+  }
+
   for (const tag of clean.match(/<a\b[^>]*>/gi) || []) {
     addCandidate(seen, attr(tag, "href"), baseUrl);
   }
 
   // Facebook often serializes public permalinks in page data even when a login overlay is rendered.
-  const absolute = /https?:\/\/(?:www\.|m\.)?facebook\.com\/(?:reel\/\d+|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d{8,}|story\.php\?[^"'<>\\\s]*story_fbid=\d{8,}|permalink\.php\?[^"'<>\\\s]*story_fbid=\d{8,})/gi;
+  const absolute = /https?:\/\/(?:www\.|m\.)?facebook\.com\/(?:reel\/\d{8,}|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d{8,}|story\.php\?[^"'<>\\\s]*story_fbid=\d{8,}|permalink\.php\?[^"'<>\\\s]*story_fbid=\d{8,})/gi;
   for (const match of clean.match(absolute) || []) addCandidate(seen, match, baseUrl);
 
-  const relative = /(?:href=["']?)?(\/(?:reel\/\d+|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d{8,}|story\.php\?[^"'<>\\\s]*story_fbid=\d{8,}|permalink\.php\?[^"'<>\\\s]*story_fbid=\d{8,}))/gi;
+  const relative = /(?:href=["']?)?(\/(?:reel\/\d{8,}|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d{8,}|story\.php\?[^"'<>\\\s]*story_fbid=\d{8,}|permalink\.php\?[^"'<>\\\s]*story_fbid=\d{8,}))/gi;
   let m;
   while ((m = relative.exec(clean)) !== null) addCandidate(seen, m[1], baseUrl);
 
@@ -247,17 +275,22 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   const fingerprint = await sha256Hex(permalink);
   const sourceKey = candidate.permalink;
   const caption = (details?.description || candidate.anchorText || details?.title || "").slice(0, 20000);
-  const thumbnailUrl = details?.image || null;
-  let r2Key = null;
-  if (thumbnailUrl) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
+  const thumbnailUrl = details?.image || candidate.thumbnailUrl || null;
 
-  let existing = await env.DB.prepare(
-    "SELECT id,status FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
+  const existing = await env.DB.prepare(
+    "SELECT id,status,r2_thumbnail_key FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
   ).bind(sourceKey, facebookId, facebookId).first();
 
-  const rawJson = details
-    ? JSON.stringify({ sourceUrl, title: details.title || "", video: details.video || "" }).slice(0, 50000)
-    : null;
+  let r2Key = existing?.r2_thumbnail_key || null;
+  if (thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
+
+  const rawObject = {
+    sourceUrl,
+    viewLabel: candidate.viewLabel || null,
+    title: details?.title || "",
+    video: details?.video || "",
+  };
+  const rawJson = JSON.stringify(rawObject).slice(0, 50000);
   const detectedEmbedStatus = details?.video ? "detected" : null;
 
   if (existing) {
@@ -274,7 +307,7 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
       "embed_url=COALESCE(?,embed_url), " +
       "embed_status=COALESCE(?,embed_status), " +
       "status=CASE WHEN status='shadow' AND ?<>'shadow' THEN ? ELSE status END, " +
-      "raw_json=COALESCE(?,raw_json) " +
+      "raw_json=? " +
       "WHERE id=?"
     ).bind(
       facebookId, candidate.itemType, caption, caption, permalink, details?.publishedAt || null,
@@ -289,8 +322,7 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
     "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
   ).bind(
     sourceKey, facebookId, permalink, candidate.itemType, caption, details?.publishedAt || null,
-    thumbnailUrl, r2Key, permalink, detectedEmbedStatus || "unknown", status, fingerprint,
-    rawJson || JSON.stringify({ sourceUrl }).slice(0, 50000)
+    thumbnailUrl, r2Key, permalink, detectedEmbedStatus || "unknown", status, fingerprint, rawJson
   ).run();
   return "inserted";
 }
@@ -301,6 +333,45 @@ function mobileVariant(url) {
     u.hostname = "m.facebook.com";
     return u.toString();
   } catch { return url; }
+}
+
+async function enrichOnePending(env, runId, itemStatus) {
+  const row = await env.DB.prepare(
+    "SELECT id,source_key,facebook_id,permalink,item_type,caption,thumbnail_url,published_at " +
+    "FROM facebook_items WHERE status IN ('shadow','draft','published') " +
+    "AND (caption='' OR caption IS NULL OR published_at IS NULL) " +
+    "ORDER BY CASE WHEN caption='' OR caption IS NULL THEN 0 ELSE 1 END, first_seen_at ASC LIMIT 1"
+  ).first();
+
+  if (!row) {
+    await finishRun(env, runId, { status: "success", notes: "No pending Facebook item needs metadata enrichment." });
+    return { ok: true, status: "success", runId, enriched: 0 };
+  }
+
+  try {
+    const details = await detail(env, row.permalink);
+    const candidate = {
+      permalink: row.source_key || row.permalink,
+      facebookId: row.facebook_id || facebookContentId(row.permalink),
+      itemType: row.item_type,
+      anchorText: row.caption || "",
+      thumbnailUrl: row.thumbnail_url || null,
+      viewLabel: null,
+    };
+    await upsertItem(env, candidate, details, row.permalink, itemStatus);
+    await finishRun(env, runId, {
+      status: "success", discovered: 1, updated: 1,
+      notes: "Enriched one existing Facebook item with permalink metadata."
+    });
+    return { ok: true, status: "success", runId, enriched: 1, itemId: row.id };
+  } catch (error) {
+    await logError(env, runId, "enrich", row.permalink, "DETAIL_ERROR", String(error));
+    await finishRun(env, runId, {
+      status: "partial", discovered: 1, errors: 1,
+      notes: "Metadata enrichment was deferred after a Browser Run error."
+    });
+    return { ok: false, status: "partial", runId, enriched: 0, error: String(error) };
+  }
 }
 
 async function sync(env, trigger = "cron") {
@@ -320,17 +391,6 @@ async function sync(env, trigger = "cron") {
     return { ok: true, status: "disabled", runId };
   }
 
-  if (trigger === "cron") {
-    const backoff = Number(await setting(env, "sync_failure_backoff_minutes", "120")) || 120;
-    const recent = await env.DB.prepare(
-      "SELECT id FROM sync_runs WHERE status='blocked' AND started_at>datetime('now', ?) ORDER BY id DESC LIMIT 1"
-    ).bind("-" + backoff + " minutes").first();
-    if (recent) {
-      await finishRun(env, runId, { status: "backoff", notes: "Recent Facebook login wall/block detected." });
-      return { ok: true, status: "backoff", runId };
-    }
-  }
-
   const profile = await setting(env, "facebook_profile_url");
   const reels = await setting(env, "facebook_reels_url");
   const shadow = (await setting(env, "facebook_shadow_mode", "true")) === "true";
@@ -340,10 +400,20 @@ async function sync(env, trigger = "cron") {
 
   let sources;
   if (trigger === "cron") {
-    const minute = new Date().getUTCMinutes();
-    sources = [minute < 30 ? profile : reels];
+    const now = new Date();
+    const minute = now.getUTCMinutes();
+    const hour = now.getUTCHours();
+
+    if (minute < 30 && hour % 6 !== 0) {
+      return enrichOnePending(env, runId, itemStatus);
+    }
+
+    // Probe the normal profile only every 6 hours because Facebook currently
+    // shows a login wall to unauthenticated browsers. Other :00 runs enrich metadata.
+    sources = [minute < 30 ? profile : reels].filter(Boolean);
   } else {
-    sources = [profile, reels].filter(Boolean);
+    // A manual admin sync prioritizes discovery and uses only one Browser Run.
+    sources = [reels].filter(Boolean);
   }
 
   let discovered = 0, inserted = 0, updated = 0, errors = 0;
@@ -379,7 +449,7 @@ async function sync(env, trigger = "cron") {
   discovered = candidates.length;
   // Enrich only a small number of items per run to stay under Browser Run limits.
   // Existing shadow items with missing caption/thumbnail are progressively enriched.
-  const detailBudget = trigger === "admin" ? 2 : 1;
+  const detailBudget = 0;
   let detailed = 0;
 
   for (const candidate of candidates) {
