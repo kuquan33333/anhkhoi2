@@ -18,7 +18,7 @@ interface Post {
 	slug: string;
 	data: {
 		title: string;
-        titleEn?: string;
+		titleEn?: string;
 		tags: string[];
 		category?: string | null;
 		published: Date;
