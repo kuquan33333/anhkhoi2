@@ -150,12 +150,24 @@ async function browserContent(env, url) {
   return payload.result;
 }
 
+function facebookContentId(url) {
+  try {
+    const u = new URL(url);
+    const path = u.pathname;
+    const m = path.match(/\/(?:reel|videos)\/(\d{8,})(?:\/|$)/i);
+    if (m) return m[1];
+    const q = u.searchParams.get("v") || u.searchParams.get("story_fbid") || u.searchParams.get("fbid");
+    return q && /^\d{8,}$/.test(q) ? q : null;
+  } catch { return null; }
+}
+
 function addCandidate(map, raw, baseUrl, text = "") {
   const normalized = normalizeFacebookUrl(raw, baseUrl);
   if (!isCandidate(normalized)) return;
   if (!map.has(normalized)) map.set(normalized, {
     permalink: normalized,
     itemType: classify(normalized),
+    facebookId: facebookContentId(normalized),
     anchorText: String(text || "").trim().slice(0, 1000),
   });
 }
@@ -231,37 +243,58 @@ async function cacheImage(env, sourceUrl, fingerprint) {
 
 async function upsertItem(env, candidate, details, sourceUrl, status) {
   const permalink = details?.canonical || candidate.permalink;
+  const facebookId = candidate.facebookId || facebookContentId(permalink);
   const fingerprint = await sha256Hex(permalink);
-  const sourceKey = permalink;
+  const sourceKey = candidate.permalink;
   const caption = (details?.description || candidate.anchorText || details?.title || "").slice(0, 20000);
   const thumbnailUrl = details?.image || null;
   let r2Key = null;
   if (thumbnailUrl) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
 
-  const existing = await env.DB.prepare("SELECT id FROM facebook_items WHERE source_key=? LIMIT 1").bind(sourceKey).first();
+  let existing = await env.DB.prepare(
+    "SELECT id,status FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
+  ).bind(sourceKey, facebookId, facebookId).first();
+
+  const rawJson = details
+    ? JSON.stringify({ sourceUrl, title: details.title || "", video: details.video || "" }).slice(0, 50000)
+    : null;
+  const detectedEmbedStatus = details?.video ? "detected" : null;
+
   if (existing) {
     await env.DB.prepare(
-      "UPDATE facebook_items SET item_type=?,caption=?,permalink=?,published_at=COALESCE(?,published_at),last_seen_at=datetime('now')," +
-      "thumbnail_url=COALESCE(?,thumbnail_url),r2_thumbnail_key=COALESCE(?,r2_thumbnail_key),embed_url=?,embed_status=?,raw_json=? WHERE id=?"
+      "UPDATE facebook_items SET " +
+      "facebook_id=COALESCE(facebook_id,?), " +
+      "item_type=?, " +
+      "caption=CASE WHEN ?<>'' THEN ? ELSE caption END, " +
+      "permalink=?, " +
+      "published_at=COALESCE(?,published_at), " +
+      "last_seen_at=datetime('now'), " +
+      "thumbnail_url=COALESCE(?,thumbnail_url), " +
+      "r2_thumbnail_key=COALESCE(?,r2_thumbnail_key), " +
+      "embed_url=COALESCE(?,embed_url), " +
+      "embed_status=COALESCE(?,embed_status), " +
+      "status=CASE WHEN status='shadow' AND ?<>'shadow' THEN ? ELSE status END, " +
+      "raw_json=COALESCE(?,raw_json) " +
+      "WHERE id=?"
     ).bind(
-      candidate.itemType, caption, permalink, details?.publishedAt || null, thumbnailUrl, r2Key,
-      permalink, details?.video ? "detected" : "unknown",
-      JSON.stringify({ sourceUrl, title: details?.title || "", video: details?.video || "" }).slice(0, 50000),
-      existing.id
+      facebookId, candidate.itemType, caption, caption, permalink, details?.publishedAt || null,
+      thumbnailUrl, r2Key, permalink || null, detectedEmbedStatus,
+      status, status, rawJson, existing.id
     ).run();
     return "updated";
   }
 
   await env.DB.prepare(
-    "INSERT INTO facebook_items(source_key,permalink,item_type,caption,published_at,thumbnail_url,r2_thumbnail_key,embed_url,embed_status,status,fingerprint,raw_json) " +
-    "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
+    "INSERT INTO facebook_items(source_key,facebook_id,permalink,item_type,caption,published_at,thumbnail_url,r2_thumbnail_key,embed_url,embed_status,status,fingerprint,raw_json) " +
+    "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
   ).bind(
-    sourceKey, permalink, candidate.itemType, caption, details?.publishedAt || null, thumbnailUrl, r2Key,
-    permalink, details?.video ? "detected" : "unknown", status, fingerprint,
-    JSON.stringify({ sourceUrl, title: details?.title || "", video: details?.video || "" }).slice(0, 50000)
+    sourceKey, facebookId, permalink, candidate.itemType, caption, details?.publishedAt || null,
+    thumbnailUrl, r2Key, permalink, detectedEmbedStatus || "unknown", status, fingerprint,
+    rawJson || JSON.stringify({ sourceUrl }).slice(0, 50000)
   ).run();
   return "inserted";
 }
+
 function mobileVariant(url) {
   try {
     const u = new URL(url);
@@ -343,8 +376,8 @@ async function sync(env, trigger = "cron") {
   for (const candidate of candidates) {
     try {
       const exists = await env.DB.prepare(
-        "SELECT id,caption,thumbnail_url,published_at FROM facebook_items WHERE source_key=? LIMIT 1"
-      ).bind(candidate.permalink).first();
+        "SELECT id,caption,thumbnail_url,published_at FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
+      ).bind(candidate.permalink, candidate.facebookId || null, candidate.facebookId || null).first();
       let details = null;
       const needsDetails = !exists || !exists.caption || !exists.thumbnail_url || !exists.published_at;
       if (needsDetails && detailed < detailBudget) {
