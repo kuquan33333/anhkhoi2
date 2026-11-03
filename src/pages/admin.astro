@@ -1,0 +1,140 @@
+
+---
+const title = "Admin · Anh Khôi AI Media";
+---
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <link rel="icon" href="/favicon-ak.png" sizes="64x64" />
+  <title>{title}</title>
+  <style>
+    :root{font-family:Inter,Roboto,system-ui,sans-serif;color-scheme:dark;background:#07101f;color:#edf5ff}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#173367 0,#07101f 34rem);min-height:100vh}
+    button,input,textarea,select{font:inherit}.wrap{max-width:1180px;margin:auto;padding:24px}.brand{display:flex;gap:12px;align-items:center;margin-bottom:22px}
+    .brand img{width:42px;height:42px;border-radius:12px}.brand b{font-size:20px}.muted{color:#8da1bb}.card{background:#0c1729e8;border:1px solid #ffffff14;border-radius:18px;padding:18px;box-shadow:0 18px 50px #0005}
+    .login{max-width:430px;margin:10vh auto}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.col6{grid-column:span 6}.col12{grid-column:span 12}
+    label{display:block;font-size:13px;color:#a8bad0;margin:10px 0 6px}input,textarea,select{width:100%;background:#07111f;border:1px solid #ffffff1f;color:#f7fbff;border-radius:10px;padding:11px}
+    textarea{min-height:120px;resize:vertical}.btn{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:#2e6df6;color:#fff;font-weight:750}.btn.alt{background:#172740}.btn.danger{background:#8c2b3e}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}.pill{display:inline-flex;padding:5px 9px;border-radius:999px;background:#142b4d;color:#8dc5ff;font-size:12px}
+    table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px;border-bottom:1px solid #ffffff12;vertical-align:top}th{color:#83a6ce}.scroll{overflow:auto;max-height:470px}
+    .ok{color:#65d79d}.warn{color:#ffcf66}.bad{color:#ff7c91}.hidden{display:none!important}.switch{display:flex;gap:8px;align-items:center;margin:7px 0}.switch input{width:auto}
+    h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:16px 0 6px}.toolbar{position:sticky;top:0;z-index:5;background:#07101fe8;backdrop-filter:blur(15px);padding:12px 0;margin-bottom:14px}
+    @media(max-width:760px){.wrap{padding:14px}.col6{grid-column:span 12}.card{padding:14px}th:nth-child(3),td:nth-child(3){display:none}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><img src="/favicon-ak.png" alt=""><div><b>Anh Khôi AI Media</b><div class="muted">Quản trị nội dung & đồng bộ Facebook</div></div></div>
+
+  <section id="loginView" class="card login">
+    <h2>Đăng nhập quản trị</h2>
+    <form id="loginForm">
+      <label>Tài khoản</label><input id="username" autocomplete="username" value="kuquan96" />
+      <label>Mật khẩu</label><input id="password" type="password" autocomplete="current-password" />
+      <div class="row" style="margin-top:14px"><button class="btn">Đăng nhập</button><span id="loginMsg" class="muted"></span></div>
+    </form>
+  </section>
+
+  <main id="dashboard" class="hidden">
+    <div class="toolbar row between">
+      <div class="row"><span class="pill" id="who"></span><span id="health" class="muted">Đang tải…</span></div>
+      <div class="row"><a href="/" class="btn alt" style="text-decoration:none">Xem website</a><button id="logoutBtn" class="btn alt">Đăng xuất</button></div>
+    </div>
+
+    <div class="grid">
+      <section class="card col6">
+        <div class="row between"><h2>Đồng bộ Facebook</h2><button id="syncBtn" class="btn">Đồng bộ ngay</button></div>
+        <div id="settings"></div>
+        <div class="row" style="margin-top:12px"><button id="saveSettings" class="btn alt">Lưu cài đặt</button><span id="settingsMsg" class="muted"></span></div>
+      </section>
+
+      <section class="card col6">
+        <h2>Đổi mật khẩu</h2>
+        <form id="passwordForm">
+          <label>Mật khẩu hiện tại</label><input id="currentPassword" type="password" autocomplete="current-password" />
+          <label>Mật khẩu mới (tối thiểu 10 ký tự)</label><input id="newPassword" type="password" autocomplete="new-password" />
+          <div class="row" style="margin-top:12px"><button class="btn alt">Đổi mật khẩu</button><span id="passwordMsg" class="muted"></span></div>
+        </form>
+      </section>
+
+      <section class="card col12">
+        <h2>Nội dung Facebook đã phát hiện</h2>
+        <div class="scroll"><table><thead><tr><th>Loại</th><th>Nội dung</th><th>Trạng thái</th><th>Facebook</th></tr></thead><tbody id="itemsBody"></tbody></table></div>
+      </section>
+
+      <section class="card col6">
+        <h2>Lịch sử đồng bộ</h2>
+        <div class="scroll"><table><thead><tr><th>Thời gian</th><th>Kết quả</th><th>Mới/Lỗi</th></tr></thead><tbody id="runsBody"></tbody></table></div>
+      </section>
+
+      <section class="card col6">
+        <h2>Đăng bài thủ công</h2>
+        <form id="manualForm">
+          <label>Tiêu đề</label><input id="manualTitle" />
+          <label>Mô tả ngắn</label><input id="manualExcerpt" />
+          <label>Nội dung Markdown</label><textarea id="manualBody"></textarea>
+          <label>Trạng thái</label><select id="manualStatus"><option value="draft">Nháp</option><option value="published">Xuất bản</option></select>
+          <div class="row" style="margin-top:12px"><button class="btn">Lưu bài</button><span id="manualMsg" class="muted"></span></div>
+        </form>
+        <h3>Bài gần đây</h3><div id="manualList" class="muted"></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script is:inline>
+let csrf = sessionStorage.getItem("ak_csrf") || "";
+const $ = (s) => document.querySelector(s);
+async function api(url, options={}) {
+  options.headers = {"content-type":"application/json", ...(options.headers||{})};
+  if (csrf && options.method && options.method !== "GET") options.headers["x-admin-csrf"] = csrf;
+  const r = await fetch(url, options);
+  const data = await r.json().catch(()=>({ok:false,error:"invalid_response"}));
+  if (r.status===401 && !url.endsWith("/login")) showLogin();
+  return {r,data};
+}
+function showLogin(){ $("#loginView").classList.remove("hidden"); $("#dashboard").classList.add("hidden"); }
+function showDash(){ $("#loginView").classList.add("hidden"); $("#dashboard").classList.remove("hidden"); }
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));}
+async function init(){
+  const {r,data}=await api("/api/admin/me");
+  if(!r.ok){showLogin();return}
+  csrf=data.csrfToken;sessionStorage.setItem("ak_csrf",csrf);$("#who").textContent=data.user.username;showDash();
+  if(data.user.mustChangePassword) $("#health").innerHTML='<span class="warn">Nên đổi mật khẩu mặc định</span>';
+  await refresh();
+}
+async function refresh(){ await Promise.all([loadSettings(),loadItems(),loadRuns(),loadManual()]); }
+async function loadSettings(){
+  const {data}=await api("/api/admin/settings"); if(!data.ok)return;
+  const s=data.settings; $("#settings").innerHTML=[
+    ["facebook_sync_enabled","Tự động đồng bộ",true],["facebook_auto_publish","Tự động xuất bản",true],
+    ["facebook_feed_visible","Hiển thị feed Facebook công khai",true],["facebook_shadow_mode","Shadow mode (chỉ thu thập, chưa hiện)",true]
+  ].map(([k,l])=>'<label class="switch"><input type="checkbox" data-setting="'+k+'" '+(s[k]==="true"?"checked":"")+'> '+l+'</label>').join("")+
+  '<label>Giới hạn nội dung mỗi lần</label><input data-setting="crawler_max_items_per_run" value="'+esc(s.crawler_max_items_per_run||"20")+'">';
+}
+async function loadItems(){
+  const {data}=await api("/api/admin/items?limit=60"); if(!data.ok)return;
+  $("#itemsBody").innerHTML=(data.items||[]).map(i=>'<tr><td>'+esc(i.item_type)+'</td><td>'+esc((i.caption||"").slice(0,180))+'</td><td><select data-item="'+i.id+'"><option '+(i.status==="shadow"?"selected":"")+'>shadow</option><option '+(i.status==="published"?"selected":"")+'>published</option><option '+(i.status==="hidden"?"selected":"")+'>hidden</option><option '+(i.status==="draft"?"selected":"")+'>draft</option></select></td><td>'+(i.permalink?'<a class="muted" target="_blank" rel="noopener" href="'+esc(i.permalink)+'">Mở</a>':"—")+'</td></tr>').join("")||'<tr><td colspan="4" class="muted">Chưa có dữ liệu — crawler đang ở shadow mode.</td></tr>';
+  document.querySelectorAll("[data-item]").forEach(el=>el.addEventListener("change",async()=>{await api("/api/admin/items/"+el.dataset.item,{method:"PATCH",body:JSON.stringify({status:el.value})});}));
+}
+async function loadRuns(){
+  const {data}=await api("/api/admin/runs"); if(!data.ok)return;
+  $("#runsBody").innerHTML=(data.runs||[]).map(x=>'<tr><td>'+esc(x.started_at)+'</td><td class="'+(x.status==="success"?"ok":x.status==="blocked"?"bad":"warn")+'">'+esc(x.status)+(x.blocked_reason?'<br><span class="muted">'+esc(x.blocked_reason)+'</span>':"")+'</td><td>'+esc(x.inserted_count)+' / '+esc(x.error_count)+'</td></tr>').join("")||'<tr><td colspan="3" class="muted">Chưa chạy.</td></tr>';
+}
+async function loadManual(){
+ const {data}=await api("/api/admin/manual-posts"); if(!data.ok)return;
+ $("#manualList").innerHTML=(data.posts||[]).slice(0,8).map(p=>'<div>• '+esc(p.title)+' <span class="pill">'+esc(p.status)+'</span></div>').join("")||"Chưa có bài thủ công.";
+}
+$("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#loginMsg").textContent="Đang đăng nhập…";const {r,data}=await api("/api/admin/login",{method:"POST",body:JSON.stringify({username:$("#username").value,password:$("#password").value})});if(!r.ok){$("#loginMsg").textContent=data.error||"Đăng nhập thất bại";return}csrf=data.csrfToken;sessionStorage.setItem("ak_csrf",csrf);$("#loginMsg").textContent="";await init();});
+$("#logoutBtn").addEventListener("click",async()=>{await api("/api/admin/logout",{method:"POST"});sessionStorage.removeItem("ak_csrf");csrf="";showLogin();});
+$("#syncBtn").addEventListener("click",async()=>{$("#health").textContent="Đang đồng bộ…";const {data}=await api("/api/admin/sync",{method:"POST",body:"{}"});$("#health").textContent=data.ok?"Đồng bộ xong":("Đồng bộ: "+(data.error||data.status||"lỗi"));await refresh();});
+$("#saveSettings").addEventListener("click",async()=>{const settings={};document.querySelectorAll("[data-setting]").forEach(el=>settings[el.dataset.setting]=el.type==="checkbox"?String(el.checked):el.value);const {data}=await api("/api/admin/settings",{method:"PATCH",body:JSON.stringify({settings})});$("#settingsMsg").textContent=data.ok?"Đã lưu":"Lỗi";});
+$("#passwordForm").addEventListener("submit",async e=>{e.preventDefault();const {data}=await api("/api/admin/password",{method:"POST",body:JSON.stringify({currentPassword:$("#currentPassword").value,newPassword:$("#newPassword").value})});$("#passwordMsg").textContent=data.ok?"Đã đổi mật khẩu":(data.error||"Lỗi");});
+$("#manualForm").addEventListener("submit",async e=>{e.preventDefault();const {data}=await api("/api/admin/manual-posts",{method:"POST",body:JSON.stringify({title:$("#manualTitle").value,excerpt:$("#manualExcerpt").value,bodyMarkdown:$("#manualBody").value,status:$("#manualStatus").value})});$("#manualMsg").textContent=data.ok?"Đã lưu":"Lỗi: "+(data.error||"");if(data.ok){e.target.reset();await loadManual();}});
+init();
+</script>
+</body>
+</html>
