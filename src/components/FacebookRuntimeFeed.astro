@@ -92,7 +92,8 @@ async function initRuntimeFeed(section) {
       const body = makeEl("div", "ak-runtime-body");
       const metaText = (item.item_type || "post").toUpperCase() + (item.viewLabel ? (" · " + item.viewLabel + " lượt xem") : "");
       const meta = makeEl("div", "ak-runtime-meta", metaText);
-      const caption = makeEl("p", "ak-runtime-caption", item.caption || "Nội dung mới từ Facebook Anh Khôi.");
+      const fallbackCaption = item.item_type === "reel" || item.item_type === "video" ? "Reel mới từ Facebook Anh Khôi." : "Nội dung mới từ Facebook Anh Khôi.";
+      const caption = makeEl("p", "ak-runtime-caption", item.caption || fallbackCaption);
       body.append(meta, caption);
       if (validFacebookUrl(item.permalink)) {
         const actions = makeEl("div", "ak-runtime-actions");
@@ -126,7 +127,7 @@ document.addEventListener("astro:page-load", bootRuntimeFeeds);
 <style is:global>
 .ak-runtime-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
 .ak-runtime-card{overflow:hidden;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg)}
-.ak-runtime-poster{aspect-ratio:16/10;background:#0b1830;overflow:hidden}
+.ak-runtime-poster{aspect-ratio:9/13;background:#0b1830;overflow:hidden;position:relative}
 .ak-runtime-poster img{width:100%;height:100%;object-fit:cover;display:block}
 .ak-runtime-body{padding:1rem}.ak-runtime-meta{font-size:.7rem;font-weight:850;color:var(--primary);letter-spacing:.08em}
 .ak-runtime-caption{margin-top:.45rem;line-height:1.6;font-size:.9rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
