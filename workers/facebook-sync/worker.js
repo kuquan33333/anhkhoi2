@@ -318,21 +318,27 @@ function detailFromHtml(html, url) {
 }
 
 async function detailHttp(url) {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        "user-agent": "Mozilla/5.0 (compatible; AnhKhoiMedia/1.0; +https://anhkhoi.pages.dev/)",
-        "accept-language": "vi,en;q=0.8",
-      },
-      redirect: "follow",
-    });
-    if (!response.ok) return null;
-    const html = await response.text();
-    const parsed = detailFromHtml(html, url);
-    return (parsed.description || parsed.image || parsed.title) ? parsed : null;
-  } catch {
-    return null;
+  const variants = [url];
+  const id = facebookContentId(url);
+  if (id) variants.push("https://www.facebook.com/watch/?v=" + id);
+  for (const candidateUrl of [...new Set(variants)]) {
+    try {
+      const response = await fetch(candidateUrl, {
+        headers: {
+          "user-agent": "Mozilla/5.0 (compatible; AnhKhoiMedia/1.0; +https://anhkhoi.pages.dev/)",
+          "accept-language": "vi,en;q=0.8",
+        },
+        redirect: "follow",
+      });
+      if (!response.ok) continue;
+      const html = await response.text();
+      const parsed = detailFromHtml(html, url);
+      if (parsed.description || parsed.image || parsed.title) return parsed;
+    } catch {
+      // Try the next public URL variant.
+    }
   }
+  return null;
 }
 
 async function detail(env, url) {
@@ -461,7 +467,8 @@ async function enrichPendingBatch(env, runId, itemStatus) {
     "SELECT id,source_key,facebook_id,permalink,item_type,caption,thumbnail_url,published_at " +
     "FROM facebook_items WHERE status IN ('shadow','draft','published') " +
     "AND (caption='' OR caption IS NULL OR thumbnail_url IS NULL OR r2_thumbnail_key IS NULL) " +
-    "ORDER BY CASE WHEN caption='' OR caption IS NULL THEN 0 ELSE 1 END, first_seen_at ASC LIMIT 3"
+    "AND (next_enrich_at IS NULL OR next_enrich_at<=datetime('now')) " +
+    "ORDER BY CASE WHEN caption='' OR caption IS NULL THEN 0 ELSE 1 END, enrich_fail_count ASC, first_seen_at ASC LIMIT 3"
   ).all();
 
   const pending = rows.results || [];
@@ -496,7 +503,10 @@ async function enrichPendingBatch(env, runId, itemStatus) {
       }
       if (!details) {
         errors++;
-        await logError(env, runId, "enrich", row.permalink, "NO_METADATA", "Public metadata was not available without additional browser requests.");
+        await env.DB.prepare(
+          "UPDATE facebook_items SET enrich_fail_count=enrich_fail_count+1,next_enrich_at=datetime('now','+6 hours') WHERE id=?"
+        ).bind(row.id).run();
+        await logError(env, runId, "enrich", row.permalink, "NO_METADATA", "Public metadata was unavailable; retry deferred for 6 hours.");
         continue;
       }
       const candidate = {
@@ -508,9 +518,13 @@ async function enrichPendingBatch(env, runId, itemStatus) {
         viewLabel: null,
       };
       await upsertItem(env, candidate, details, row.permalink, itemStatus);
+      await env.DB.prepare("UPDATE facebook_items SET enrich_fail_count=0,next_enrich_at=NULL WHERE id=?").bind(row.id).run();
       updated++;
     } catch (error) {
       errors++;
+      await env.DB.prepare(
+        "UPDATE facebook_items SET enrich_fail_count=enrich_fail_count+1,next_enrich_at=datetime('now','+2 hours') WHERE id=?"
+      ).bind(row.id).run();
       await logError(env, runId, "enrich", row.permalink, "DETAIL_ERROR", String(error));
     }
   }
