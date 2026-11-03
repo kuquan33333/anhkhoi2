@@ -239,6 +239,24 @@ function detailFromHtml(html, url) {
 }
 
 async function detail(env, url) {
+  // Public Reel pages often expose Open Graph metadata in the initial HTML.
+  // Try a normal HTTP request first; Browser Run is only a fallback.
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; AnhKhoiMedia/1.0; +https://anhkhoi.pages.dev/)",
+        "accept-language": "vi,en;q=0.8",
+      },
+      redirect: "follow",
+    });
+    if (response.ok) {
+      const html = await response.text();
+      const parsed = detailFromHtml(html, url);
+      if (parsed.description || parsed.image || parsed.title) return parsed;
+    }
+  } catch {
+    // Fallback below.
+  }
   return detailFromHtml(await browserContent(env, url), url);
 }
 
