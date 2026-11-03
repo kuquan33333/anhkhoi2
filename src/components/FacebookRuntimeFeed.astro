@@ -53,11 +53,12 @@ function openRuntimePlayer(section, href) {
   const plugin = new URL("https://www.facebook.com/plugins/video.php");
   plugin.searchParams.set("href", href);
   plugin.searchParams.set("show_text", "false");
-  plugin.searchParams.set("width", "760");
+  const playerWidth = Math.max(280, Math.min(760, window.innerWidth - 32));
+  plugin.searchParams.set("width", String(playerWidth));
   const iframe = document.createElement("iframe");
   iframe.src = plugin.toString();
   iframe.title = "Facebook video - Anh Khôi";
-  iframe.loading = "lazy";
+  iframe.loading = "eager";
   iframe.allow = "encrypted-media; clipboard-write; fullscreen; picture-in-picture";
   iframe.setAttribute("allowfullscreen", "");
   inner.replaceChildren(iframe);
@@ -78,7 +79,7 @@ async function initRuntimeFeed(section) {
     if (!payload.enabled || !items.length) return;
     const grid = section.querySelector("[data-runtime-grid]");
     if (!grid) return;
-    const limit = mode === "reels" ? 30 : 6;
+    const limit = mode === "reels" ? 100 : 6;
     for (const item of items.slice(0, limit)) {
       const card = makeEl("article", "ak-runtime-card");
       const poster = makeEl("div", "ak-runtime-poster");
