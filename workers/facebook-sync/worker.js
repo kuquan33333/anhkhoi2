@@ -6,24 +6,64 @@ function isFacebookHost(hostname) {
   return hostname === "facebook.com" || hostname.endsWith("." + FB_HOST_SUFFIX);
 }
 
-function textOfGroup(scraped, selector) {
-  const group = (scraped || []).find(x => x.selector === selector);
-  return (group?.results || []).map(x => x.text || "").filter(Boolean);
+
+function htmlDecode(value) {
+  return String(value || "")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
 }
 
-function attrs(result) {
-  return Object.fromEntries((result?.attributes || []).map(x => [x.name, x.value]));
+function unescapeFacebookHtml(value) {
+  return htmlDecode(value)
+    .replace(/\\u0025/gi, "%")
+    .replace(/\\u0026/gi, "&")
+    .replace(/\\u003d/gi, "=")
+    .replace(/\\u002f/gi, "/")
+    .replace(/\\u003a/gi, ":")
+    .replace(/\\u002d/gi, "-")
+    .replace(/\\u005c/gi, "\\")
+    .replace(/\\\//g, "/");
 }
 
-function metaValue(scraped, selector, name = "content") {
-  const group = (scraped || []).find(x => x.selector === selector);
-  const first = group?.results?.[0];
-  return first ? (attrs(first)[name] || first.text || "") : "";
+function stripTags(html) {
+  return htmlDecode(String(html || "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+  ).trim();
+}
+
+function attr(tag, name) {
+  const re = new RegExp("\\\\b" + name + "\\\\s*=\\\\s*(?:\\\"([^\\\"]*)\\\"|'([^']*)'|([^\\\\s>]+))", "i");
+  const m = String(tag || "").match(re);
+  return htmlDecode(m ? (m[1] ?? m[2] ?? m[3] ?? "") : "");
+}
+
+function metaValueFromHtml(html, property) {
+  const tags = String(html || "").match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    const key = attr(tag, "property") || attr(tag, "name");
+    if (key.toLowerCase() === String(property).toLowerCase()) return attr(tag, "content");
+  }
+  return "";
+}
+
+function canonicalFromHtml(html) {
+  const tags = String(html || "").match(/<link\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    if ((attr(tag, "rel") || "").toLowerCase().split(/\s+/).includes("canonical")) return attr(tag, "href");
+  }
+  return "";
 }
 
 function normalizeFacebookUrl(raw, base) {
   try {
-    const u = new URL(raw, base);
+    const clean = unescapeFacebookHtml(raw);
+    const u = new URL(clean, base);
     if (!isFacebookHost(u.hostname)) return null;
     u.protocol = "https:";
     u.hostname = "www.facebook.com";
@@ -49,9 +89,7 @@ function classify(url) {
 }
 
 function isCandidate(url) {
-  if (!url) return false;
-  const type = classify(url);
-  return type !== "unknown";
+  return !!url && classify(url) !== "unknown";
 }
 
 function looksBlocked(bodyText) {
@@ -98,20 +136,9 @@ async function logError(env, runId, stage, url, code, message) {
   ).bind(runId, stage, url || null, code || null, String(message).slice(0, 4000)).run();
 }
 
-async function browserScrape(env, url) {
-  const response = await env.BROWSER.quickAction("scrape", {
+async function browserContent(env, url) {
+  const response = await env.BROWSER.quickAction("content", {
     url,
-    elements: [
-      { selector: "body" },
-      { selector: "a" },
-      { selector: 'meta[property="og:title"]' },
-      { selector: 'meta[property="og:description"]' },
-      { selector: 'meta[property="og:image"]' },
-      { selector: 'meta[property="og:url"]' },
-      { selector: 'meta[property="og:video"]' },
-      { selector: 'meta[property="article:published_time"]' },
-      { selector: 'link[rel="canonical"]' },
-    ],
     gotoOptions: { waitUntil: "domcontentloaded", timeout: 20000 },
   });
   if (!response.ok) {
@@ -119,25 +146,36 @@ async function browserScrape(env, url) {
     throw new Error("browser_http_" + response.status + ": " + txt.slice(0, 800));
   }
   const payload = await response.json();
-  if (payload?.success === false) throw new Error("browser_action_failed");
-  return payload?.result || payload || [];
+  if (!payload?.success || typeof payload.result !== "string") throw new Error("browser_action_failed");
+  return payload.result;
 }
 
-function discover(scraped, baseUrl) {
-  const group = (scraped || []).find(x => x.selector === "a");
+function addCandidate(map, raw, baseUrl, text = "") {
+  const normalized = normalizeFacebookUrl(raw, baseUrl);
+  if (!isCandidate(normalized)) return;
+  if (!map.has(normalized)) map.set(normalized, {
+    permalink: normalized,
+    itemType: classify(normalized),
+    anchorText: String(text || "").trim().slice(0, 1000),
+  });
+}
+
+function discoverFromHtml(html, baseUrl) {
   const seen = new Map();
-  for (const a of group?.results || []) {
-    const href = attrs(a).href;
-    const normalized = normalizeFacebookUrl(href, baseUrl);
-    if (!isCandidate(normalized)) continue;
-    if (!seen.has(normalized)) {
-      seen.set(normalized, {
-        permalink: normalized,
-        itemType: classify(normalized),
-        anchorText: String(a.text || "").trim().slice(0, 1000),
-      });
-    }
+  const clean = unescapeFacebookHtml(html);
+
+  for (const tag of clean.match(/<a\b[^>]*>/gi) || []) {
+    addCandidate(seen, attr(tag, "href"), baseUrl);
   }
+
+  // Facebook often serializes public permalinks in page data even when a login overlay is rendered.
+  const absolute = /https?:\/\/(?:www\.|m\.)?facebook\.com\/(?:reel\/\d+|[^"'<>\\\s]+\/videos\/\d+|watch\/?\?[^"'<>\\\s]*v=\d+|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d+|story\.php\?[^"'<>\\\s]*story_fbid=\d+|permalink\.php\?[^"'<>\\\s]*story_fbid=\d+)/gi;
+  for (const match of clean.match(absolute) || []) addCandidate(seen, match, baseUrl);
+
+  const relative = /(?:href=["']?)?(\/(?:reel\/\d+|[^"'<>\\\s]+\/videos\/\d+|watch\/?\?[^"'<>\\\s]*v=\d+|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d+|story\.php\?[^"'<>\\\s]*story_fbid=\d+|permalink\.php\?[^"'<>\\\s]*story_fbid=\d+))/gi;
+  let m;
+  while ((m = relative.exec(clean)) !== null) addCandidate(seen, m[1], baseUrl);
+
   return [...seen.values()];
 }
 
@@ -147,19 +185,21 @@ async function sha256Hex(value) {
   return [...digest].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function detail(env, url) {
-  const scraped = await browserScrape(env, url);
-  const canonical = metaValue(scraped, 'meta[property="og:url"]') ||
-    metaValue(scraped, 'link[rel="canonical"]', "href") || url;
+function detailFromHtml(html, url) {
+  const canonical = metaValueFromHtml(html, "og:url") || canonicalFromHtml(html) || url;
   return {
     canonical: normalizeFacebookUrl(canonical, url) || url,
-    title: metaValue(scraped, 'meta[property="og:title"]'),
-    description: metaValue(scraped, 'meta[property="og:description"]'),
-    image: metaValue(scraped, 'meta[property="og:image"]'),
-    video: metaValue(scraped, 'meta[property="og:video"]'),
-    publishedAt: metaValue(scraped, 'meta[property="article:published_time"]') || null,
-    blocked: looksBlocked(textOfGroup(scraped, "body").join("\n").slice(0, 12000)),
+    title: metaValueFromHtml(html, "og:title"),
+    description: metaValueFromHtml(html, "og:description"),
+    image: metaValueFromHtml(html, "og:image"),
+    video: metaValueFromHtml(html, "og:video") || metaValueFromHtml(html, "og:video:url"),
+    publishedAt: metaValueFromHtml(html, "article:published_time") || null,
+    blocked: looksBlocked(stripTags(html).slice(0, 15000)),
   };
+}
+
+async function detail(env, url) {
+  return detailFromHtml(await browserContent(env, url), url);
 }
 
 async function cacheImage(env, sourceUrl, fingerprint) {
@@ -222,7 +262,6 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   ).run();
   return "inserted";
 }
-
 function mobileVariant(url) {
   try {
     const u = new URL(url);
@@ -272,17 +311,17 @@ async function sync(env, trigger = "cron") {
   for (const source of sources) {
     if (!source) continue;
     try {
-      let scraped = await browserScrape(env, source);
-      let body = textOfGroup(scraped, "body").join("\n").slice(0, 12000);
-      let found = discover(scraped, source);
+      let html = await browserContent(env, source);
+      let body = stripTags(html).slice(0, 15000);
+      let found = discoverFromHtml(html, source);
       if (looksBlocked(body) && found.length === 0 && trigger !== "cron") {
         const fallback = mobileVariant(source);
-        scraped = await browserScrape(env, fallback);
-        body = textOfGroup(scraped, "body").join("\n").slice(0, 12000);
-        found = discover(scraped, fallback);
+        html = await browserContent(env, fallback);
+        body = stripTags(html).slice(0, 15000);
+        found = discoverFromHtml(html, fallback);
       }
       if (looksBlocked(body) && found.length === 0) {
-        blockedReason = "Facebook returned a login wall to an unauthenticated browser.";
+        blockedReason = "Facebook returned a login wall and exposed no public post permalinks to an unauthenticated browser.";
         await logError(env, runId, "discover", source, "LOGIN_WALL", blockedReason);
         errors++;
         continue;
