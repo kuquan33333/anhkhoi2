@@ -2,90 +2,40 @@
 interface Props { mode?: "home" | "archive"; }
 const { mode = "home" } = Astro.props;
 ---
-<section class="ak-manual-feed card-base p-6 md:p-7 mt-4 hidden" data-ak-manual-feed data-mode={mode}>
-  <div class="flex items-center justify-between gap-3 mb-4">
+<section class="ak-manual-feed mt-4 hidden" data-ak-manual-feed data-mode={mode} aria-label="Các bài viết đăng từ quản trị">
+  <div class="ak-manual-heading card-base px-6 md:px-9 py-5 mb-4 flex flex-wrap items-center justify-between gap-3">
     <div>
-      <span class="text-xs font-bold text-[var(--primary)]">ANH KHÔI · ADMIN</span>
+      <span class="text-xs font-bold text-[var(--primary)]">ANH KHÔI · BÀI VIẾT</span>
       <h2 class="text-xl font-extrabold mt-1"
         data-ak-vi="Bài viết mới của Anh Khôi"
         data-ak-en="Latest posts from Anh Khoi">Bài viết mới của Anh Khôi</h2>
     </div>
+    {mode === "home" && <a href="/archive/" class="text-sm font-bold text-[var(--primary)]">Xem danh sách →</a>}
   </div>
-  <div class="ak-manual-grid" data-manual-grid></div>
+  <div class="ak-manual-list" data-manual-grid></div>
 </section>
 
-<script>
-function akText(tag, className, text) {
-  const el = document.createElement(tag);
-  if (className) el.className = className;
-  if (text != null) el.textContent = text;
-  return el;
-}
-function akManualDate(value) {
-  if (!value) return "";
-  try { return new Intl.DateTimeFormat("vi-VN",{dateStyle:"medium"}).format(new Date(value)); }
-  catch { return ""; }
-}
-async function initManualFeed(section) {
-  if (section.dataset.loaded === "1") return;
-  section.dataset.loaded = "1";
-  try {
-    const response = await fetch("/api/manual-posts", {headers:{accept:"application/json"}});
-    if (!response.ok) return;
-    const payload = await response.json();
-    const posts = Array.isArray(payload.posts) ? payload.posts : [];
-    if (!payload.enabled || !posts.length) return;
-    const grid = section.querySelector("[data-manual-grid]");
-    if (!grid) return;
-    const mode = section.dataset.mode || "home";
-    const limit = mode === "archive" ? 50 : 6;
-    for (const post of posts.slice(0,limit)) {
-      const card = document.createElement("article");
-      card.className = "ak-manual-card";
-      if (post.cover_r2_key) {
-        const media = document.createElement("a");
-        media.className = "ak-manual-cover";
-        media.href = "/bai-viet/?slug=" + encodeURIComponent(post.slug);
-        const img = document.createElement("img");
-        img.src = "/api/media?key=" + encodeURIComponent(post.cover_r2_key);
-        img.alt = post.title || "Bài viết Anh Khôi";
-        img.loading = "lazy";
-        img.decoding = "async";
-        media.append(img);
-        card.append(media);
-      }
-      const meta = akText("div","ak-manual-meta",
-        [post.category || "Bài viết", akManualDate(post.published_at)].filter(Boolean).join(" · "));
-      const title = akText("h3","ak-manual-title",post.title || "Bài viết");
-      const excerpt = akText("p","ak-manual-excerpt",post.excerpt || "");
-      const link = akText("a","ak-manual-link","Đọc bài →");
-      link.href = "/bai-viet/?slug=" + encodeURIComponent(post.slug);
-      link.setAttribute("data-ak-vi","Đọc bài →");
-      link.setAttribute("data-ak-en","Read post →");
-      card.append(meta,title);
-      if (post.excerpt) card.append(excerpt);
-      card.append(link);
-      grid.append(card);
-    }
-    section.classList.remove("hidden");
-  } catch { /* Runtime content must not break the static Fuwari page. */ }
-}
-function bootManualFeeds(){
-  document.querySelectorAll("[data-ak-manual-feed]").forEach(el=>initManualFeed(el));
-}
-if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",bootManualFeeds);
-else bootManualFeeds();
-document.addEventListener("astro:page-load",bootManualFeeds);
-</script>
-
 <style is:global>
-.ak-manual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-.ak-manual-card{padding:1rem;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg);overflow:hidden}
-.ak-manual-cover{display:block;margin:-1rem -1rem 1rem;aspect-ratio:16/9;overflow:hidden;background:var(--btn-plain-bg-hover)}
-.ak-manual-cover img{width:100%;height:100%;object-fit:cover;display:block}
-.ak-manual-meta{font-size:.72rem;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.06em}
-.ak-manual-title{font-size:1.05rem;font-weight:850;line-height:1.4;margin-top:.45rem}
-.ak-manual-excerpt{font-size:.9rem;line-height:1.65;margin-top:.55rem;color:var(--text-75)}
-.ak-manual-link{display:inline-block;margin-top:.8rem;font-size:.85rem;font-weight:800;color:var(--primary)}
-@media(max-width:640px){.ak-manual-grid{grid-template-columns:1fr}}
+.ak-manual-list{display:flex;flex-direction:column;gap:1rem}
+.ak-manual-card{position:relative;display:flex;min-width:0;min-height:195px;border-radius:var(--radius-large);background:var(--card-bg);color:var(--text-primary);overflow:hidden}
+.ak-manual-content{padding:1.65rem 2rem;flex:1;min-width:0;max-width:100%}
+.ak-manual-card.has-cover .ak-manual-content{padding-right:calc(30% + 1rem)}
+.ak-manual-title{font-size:clamp(1.3rem,2vw,1.78rem);line-height:1.35;font-weight:850;letter-spacing:-.02em;overflow-wrap:anywhere}
+.ak-manual-title a{color:var(--text-primary);text-decoration:none}
+.ak-manual-title a:hover,.ak-manual-title a:focus-visible{color:var(--primary)}
+.ak-manual-title::before{content:"";position:absolute;left:1.1rem;top:2rem;width:4px;height:1.15rem;border-radius:4px;background:var(--primary)}
+.ak-manual-meta{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;font-size:.8rem;font-weight:650;color:var(--text-50);margin-top:1rem}
+.ak-manual-meta .ak-manual-pill{display:inline-flex;align-items:center;border-radius:.45rem;background:var(--btn-regular-bg);padding:.25rem .5rem}
+.ak-manual-excerpt{font-size:.93rem;line-height:1.7;color:var(--text-75);margin:.85rem 0 0;overflow-wrap:anywhere}
+.ak-manual-link{display:inline-flex;align-items:center;gap:.25rem;font-size:.9rem;font-weight:800;color:var(--primary);margin-top:1rem}
+.ak-manual-cover{position:absolute;right:.8rem;top:.8rem;bottom:.8rem;width:28%;display:block;border-radius:.85rem;overflow:hidden;background:var(--btn-regular-bg)}
+.ak-manual-cover img{display:block;width:100%;height:100%;object-fit:cover}
+.ak-manual-cover:focus-visible,.ak-manual-title a:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.ak-manual-cover:hover img{transform:scale(1.02);transition:transform .25s}
+@media(max-width:760px){
+.ak-manual-card{display:flex;flex-direction:column}
+.ak-manual-cover{position:relative;order:-1;top:auto;right:auto;bottom:auto;width:auto;aspect-ratio:16/9;margin:.85rem .85rem 0}
+.ak-manual-content,.ak-manual-card.has-cover .ak-manual-content{padding:1.3rem 1.4rem}
+.ak-manual-title::before{display:none}
+}
 </style>
