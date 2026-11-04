@@ -12,10 +12,11 @@ function renderTaxonomy(items: Facet[], container: HTMLElement, kind: "category"
     const a = document.createElement("a");
     a.href = "/archive/?" + kind + "=" + encodeURIComponent(item.name);
     a.className = kind === "category"
-      ? "btn-plain flex items-center justify-between rounded-lg px-3 py-2 text-75 font-medium hover:text-[var(--primary)]"
+      ? "btn-plain flex w-full items-center !justify-between rounded-lg px-3 py-2 text-left text-75 font-medium hover:text-[var(--primary)]"
       : "inline-flex rounded-lg bg-[var(--btn-regular-bg)] px-3 py-2 text-[var(--btn-content)] font-medium hover:text-[var(--primary)]";
     const label = document.createElement("span");
     label.textContent = item.name;
+    if (kind === "category") label.className = "flex-1 text-left";
     a.append(label);
     if (kind === "category") {
       const badge = document.createElement("span");

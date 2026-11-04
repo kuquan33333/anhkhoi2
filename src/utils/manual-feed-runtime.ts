@@ -5,7 +5,7 @@ type EditorialPost = {
   published_at: string | null; words?: number; minutes?: number;
 };
 type EditorialFeed = {
-  key: string; offset: number; fetching: boolean; hasMore: boolean; pageSize: number;
+  key: string; page: number; fetching: boolean; pageSize: number; totalPages: number;
 };
 const editorialStates = new WeakMap<HTMLElement, EditorialFeed>();
 const iconPaths: Record<string, string> = {
@@ -139,68 +139,126 @@ function setFilterLabel(section: HTMLElement) {
     u.searchParams.has("uncategorized") ? "Bài viết chưa phân loại" :
     "Tất cả bài viết, sắp xếp theo ngày mới nhất.";
 }
+function requestedPage(): number {
+  const raw = Number.parseInt(new URL(location.href).searchParams.get("page") || "1", 10);
+  return Number.isInteger(raw) && raw > 0 ? raw : 1;
+}
+function pageHref(page: number): string {
+  const u = new URL(location.href);
+  if (page <= 1) u.searchParams.delete("page");
+  else u.searchParams.set("page", String(page));
+  return u.pathname + (u.searchParams.size ? "?" + u.searchParams.toString() : "");
+}
+function pageWindow(current: number, total: number): Array<number | "ellipsis"> {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set<number>([1, total, current - 1, current, current + 1]);
+  if (current <= 4) [2, 3, 4, 5].forEach(p => pages.add(p));
+  if (current >= total - 3) [total - 4, total - 3, total - 2, total - 1].forEach(p => pages.add(p));
+  const ordered = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out: Array<number | "ellipsis"> = [];
+  ordered.forEach((p, i) => {
+    if (i && p - ordered[i - 1] > 1) out.push("ellipsis");
+    out.push(p);
+  });
+  return out;
+}
+function renderPagination(section: HTMLElement, current: number, total: number) {
+  const nav = section.querySelector<HTMLElement>("[data-manual-pagination]");
+  const pages = section.querySelector<HTMLElement>("[data-manual-pages]");
+  const prev = section.querySelector<HTMLAnchorElement>("[data-manual-prev]");
+  const next = section.querySelector<HTMLAnchorElement>("[data-manual-next]");
+  if (!nav || !pages || !prev || !next) return;
+  if (total <= 1) {
+    nav.hidden = true;
+    pages.replaceChildren();
+    return;
+  }
+  nav.hidden = false;
+  pages.replaceChildren();
+  for (const item of pageWindow(current, total)) {
+    if (item === "ellipsis") {
+      pages.append(el("span", "ak-page-ellipsis", "…"));
+      continue;
+    }
+    const link = el("a", "ak-page-link", String(item));
+    link.href = pageHref(item);
+    link.setAttribute("data-no-swup", "");
+    link.setAttribute("aria-label", "Trang " + item);
+    if (item === current) {
+      link.classList.add("is-current");
+      link.setAttribute("aria-current", "page");
+    }
+    pages.append(link);
+  }
+  prev.href = current > 1 ? pageHref(current - 1) : "#";
+  next.href = current < total ? pageHref(current + 1) : "#";
+  prev.setAttribute("data-no-swup", "");
+  next.setAttribute("data-no-swup", "");
+  prev.classList.toggle("is-disabled", current <= 1);
+  next.classList.toggle("is-disabled", current >= total);
+  prev.setAttribute("aria-disabled", String(current <= 1));
+  next.setAttribute("aria-disabled", String(current >= total));
+}
 async function loadPosts(section: HTMLElement, state: EditorialFeed) {
-  if (state.fetching || !state.hasMore || !section.isConnected) return;
+  if (state.fetching || !section.isConnected) return;
   state.fetching = true;
-  const more = section.querySelector<HTMLButtonElement>("[data-manual-more]");
-  const wrap = section.querySelector<HTMLElement>("[data-manual-pagination]");
+  const nav = section.querySelector<HTMLElement>("[data-manual-pagination]");
   const notice = section.querySelector<HTMLElement>("[data-manual-status]");
   const grid = section.querySelector<HTMLElement>("[data-manual-grid]");
-  if (more) { more.disabled = true; more.textContent = "Đang tải…"; }
   try {
-    const params = new URLSearchParams(state.key);
+    const params = new URLSearchParams(queryFor(section));
     params.set("limit", String(state.pageSize));
-    params.set("offset", String(state.offset));
+    params.set("offset", String((state.page - 1) * state.pageSize));
     const response = await fetch("/api/manual-posts?" + params.toString(), {
       headers: { Accept: "application/json" }
     });
     if (!response.ok) throw new Error("post_feed_request_failed");
     const data = await response.json();
-    if (!section.isConnected || state.key !== queryFor(section)) return;
+    if (!section.isConnected || state.key !== queryFor(section) + "|page=" + state.page) return;
     const posts: EditorialPost[] = Array.isArray(data.posts) ? data.posts : [];
+    state.totalPages = Math.max(0, Number(data.pageCount || 0));
     if (!data.enabled) {
-      if (notice) { notice.textContent = "Danh sách bài viết hiện đang được ẩn trong quản trị."; notice.classList.remove("hidden"); }
-      state.hasMore = false;
-    } else if (!state.offset && posts.length === 0) {
-      if (notice) { notice.textContent = "Chưa có bài viết nào trong danh sách này."; notice.classList.remove("hidden"); }
-      state.hasMore = false;
+      grid?.replaceChildren();
+      if (notice) {
+        notice.textContent = "Danh sách bài viết hiện đang được ẩn trong quản trị.";
+        notice.classList.remove("hidden");
+      }
+      nav && (nav.hidden = true);
+    } else if (!posts.length) {
+      grid?.replaceChildren();
+      if (notice) {
+        notice.textContent = state.page > 1
+          ? "Trang này không còn bài viết. Hãy chọn trang trước."
+          : "Chưa có bài viết nào trong danh sách này.";
+        notice.classList.remove("hidden");
+      }
+      renderPagination(section, state.page, state.totalPages);
     } else {
-      grid?.append(...posts.map(makeCard));
-      state.offset = Number(data.nextOffset) || state.offset + posts.length;
-      state.hasMore = !!data.hasMore;
+      grid?.replaceChildren(...posts.map(makeCard));
       notice?.classList.add("hidden");
+      renderPagination(section, state.page, state.totalPages);
     }
-    if (wrap) wrap.hidden = !state.hasMore;
   } catch {
     if (notice) {
       notice.textContent = "Không thể tải danh sách bài viết. Hãy thử lại.";
       notice.classList.remove("hidden");
     }
-    if (wrap) wrap.hidden = false;
+    if (nav) nav.hidden = true;
   } finally {
     state.fetching = false;
-    if (more) { more.disabled = false; more.textContent = "Xem thêm bài viết"; }
   }
 }
 function bootPosts() {
   document.querySelectorAll<HTMLElement>("[data-ak-manual-feed]").forEach(section => {
-    const key = queryFor(section);
+    const page = requestedPage();
+    const key = queryFor(section) + "|page=" + page;
     let state = editorialStates.get(section);
     if (state && state.key === key) return;
     section.querySelector("[data-manual-grid]")?.replaceChildren();
     section.querySelector("[data-manual-status]")?.classList.add("hidden");
     setFilterLabel(section);
-    const mode = section.dataset.mode;
-    state = { key, offset: 0, fetching: false, hasMore: true, pageSize: mode === "home" ? 8 : 30 };
+    state = { key, page, fetching: false, pageSize: 6, totalPages: 0 };
     editorialStates.set(section, state);
-    const more = section.querySelector("[data-manual-more]");
-    if (more && !more.hasAttribute("data-bound")) {
-      more.setAttribute("data-bound", "1");
-      more.addEventListener("click", () => {
-        const s = editorialStates.get(section);
-        if (s) void loadPosts(section, s);
-      });
-    }
     void loadPosts(section, state);
   });
 }

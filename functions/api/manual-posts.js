@@ -8,7 +8,7 @@ function intParam(raw, fallback, max) {
 export async function onRequestGet({ request, env }) {
   const visible = await env.DB.prepare("SELECT value FROM settings WHERE key='admin_manual_posts_visible'").first();
   if (visible?.value !== "true") {
-    return json({ ok: true, enabled: false, posts: [], hasMore: false, nextOffset: 0 });
+    return json({ ok: true, enabled: false, posts: [], hasMore: false, nextOffset: 0, total: 0, pageCount: 0 });
   }
   const u = new URL(request.url);
   const limit = Math.max(1, intParam(u.searchParams.get("limit"), 8, 50));
@@ -34,6 +34,11 @@ export async function onRequestGet({ request, env }) {
     for (let i = 0; i < 5; i++) params.push("%" + search.replace(/[%_]/g, "") + "%");
   }
   const where = conditions.join(" AND ");
+  const countRow = await env.DB.prepare(
+    "SELECT COUNT(*) AS total FROM manual_posts WHERE " + where
+  ).bind(...params).first();
+  const total = Math.max(0, Number(countRow?.total || 0));
+  const pageCount = total ? Math.ceil(total / limit) : 0;
   const query = "SELECT id,slug,title,title_en,excerpt,excerpt_en,language,category,tags_json,cover_r2_key,published_at,updated_at," +
     "length(body_markdown) AS content_length FROM manual_posts WHERE " + where +
     " ORDER BY COALESCE(published_at,created_at) DESC,id DESC LIMIT ? OFFSET ?";
@@ -53,6 +58,8 @@ export async function onRequestGet({ request, env }) {
   return json({
     ok: true, enabled: true, posts: selected,
     hasMore: results.length > limit,
-    nextOffset: offset + selected.length
+    nextOffset: offset + selected.length,
+    total,
+    pageCount
   }, 200, { "cache-control": "public, max-age=30" });
 }

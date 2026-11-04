@@ -66,7 +66,10 @@ test("public API lists only published items with tags and stable pagination", as
     seen.push(sql);
     return { bind(...params) {
       seen.push(params);
-      return { async all() { return { results:[sample] }; } };
+      return {
+        async all() { return { results:[sample] }; },
+        async first() { return sql.includes("COUNT(*) AS total") ? { total: 1 } : null; }
+      };
     }, async first() {return {value:"true"};} };
   } } };
   const response = await listPosts({ request: new Request("https://example.com/api/manual-posts?limit=8"), env });
@@ -76,6 +79,8 @@ test("public API lists only published items with tags and stable pagination", as
   assert.deepEqual(data.posts[0].tags,["AI"]);
   assert.equal(data.nextOffset,1);
   assert.equal(data.hasMore,false);
+  assert.equal(data.total,1);
+  assert.equal(data.pageCount,1);
   assert.ok(seen.some(x => typeof x === "string" && x.includes("status='published'")));
 });
 
