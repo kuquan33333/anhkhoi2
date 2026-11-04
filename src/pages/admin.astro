@@ -206,7 +206,9 @@ async function loadSettings(){
     ["facebook_sync_enabled","Tự động đồng bộ",true],["facebook_auto_publish","Tự động xuất bản",true],
     ["facebook_feed_visible","Hiển thị feed Facebook công khai",true],["facebook_shadow_mode","Shadow mode (chỉ thu thập, chưa hiện)",true]
   ].map(([k,l])=>'<label class="switch"><input type="checkbox" data-setting="'+k+'" '+(s[k]==="true"?"checked":"")+'> '+l+'</label>').join("")+
-  '<label>Giới hạn nội dung mỗi lần</label><input data-setting="crawler_max_items_per_run" value="'+esc(s.crawler_max_items_per_run||"20")+'">';
+  '<label>Giới hạn nội dung mỗi lần</label><input data-setting="crawler_max_items_per_run" type="number" min="10" max="100" value="'+esc(s.crawler_max_items_per_run||"80")+'">'+
+  '<label>Độ sâu cuộn mỗi tab Facebook</label><input data-setting="crawler_max_scrolls" type="number" min="4" max="30" value="'+esc(s.crawler_max_scrolls||"14")+'">'+
+  '<p class="muted" style="font-size:12px">Đồng bộ thủ công sẽ quét Trang chính, Bài viết, Ảnh, Video và Reels. Tự động sẽ quét sâu định kỳ và bổ sung metadata xen kẽ.</p>';
 }
 async function loadItems(){
   const {data}=await api("/api/admin/items?limit=60"); if(!data.ok)return;
