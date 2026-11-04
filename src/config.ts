@@ -28,6 +28,7 @@ export const navBarConfig: NavBarConfig = {
 	links: [
 		{ name: "Trang chủ", url: "/" },
 		{ name: "Video AI", url: "/reels/" },
+		{ name: "Facebook feed", url: "/facebook/" },
 		{ name: "Bài viết", url: "/archive/" },
 		{ name: "Giới thiệu", url: "/about/" },
 		{
