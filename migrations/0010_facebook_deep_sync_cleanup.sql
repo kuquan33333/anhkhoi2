@@ -4,7 +4,7 @@
 DELETE FROM facebook_items
 WHERE item_type='photo'
   AND r2_thumbnail_key IS NULL
-  AND caption LIKE 'Tab Video là nơi để cùng thưởng thức các video và chương trình.%';
+  AND instr(caption,'Tab Video là nơi để cùng thưởng thức các video và chương trình.')=1;
 
 -- A deeper scroll gives the public tabs more time to expose older cards.
 INSERT INTO settings(key,value,updated_at)
