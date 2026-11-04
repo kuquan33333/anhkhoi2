@@ -427,8 +427,11 @@ async function savePublicImages(env, itemId, itemType, details) {
       const u = new URL(source);
       if (u.protocol !== "https:" ||
           !(u.hostname.endsWith(".fbcdn.net") || u.hostname.endsWith(".facebook.com"))) continue;
+      const previous = await env.DB.prepare(
+        "SELECT r2_key FROM facebook_media WHERE item_id=? AND source_url=? LIMIT 1"
+      ).bind(itemId, source).first();
       const fingerprint = await sha256Hex(source);
-      const r2Key = i < 4 ? await cacheImage(env, source, fingerprint) : null;
+      const r2Key = previous?.r2_key || (i < 4 ? await cacheImage(env, source, fingerprint) : null);
       await env.DB.prepare(
         "INSERT INTO facebook_media(item_id,media_type,source_url,r2_key,ordinal) VALUES(?,'image',?,?,?) " +
         "ON CONFLICT(item_id,source_url) DO UPDATE SET r2_key=COALESCE(excluded.r2_key,facebook_media.r2_key),ordinal=excluded.ordinal"
@@ -442,7 +445,9 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   const facebookId = candidate.facebookId || facebookContentId(permalink);
   const fingerprint = await sha256Hex(permalink);
   const sourceKey = candidate.permalink;
-  const caption = (details?.description || candidate.anchorText || details?.title || "").slice(0, 20000);
+  const sourceCaption = details?.description || candidate.anchorText || details?.title || "";
+  const caption = /^(facebook|log in to facebook|đăng nhập vào facebook)(?:[\s.\-:]|$)/i.test(sourceCaption.trim())
+    ? "" : sourceCaption.slice(0, 20000);
   const thumbnailUrl = details?.image || candidate.thumbnailUrl || null;
 
   const existing = await env.DB.prepare(
@@ -450,7 +455,7 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   ).bind(sourceKey, facebookId, facebookId).first();
 
   let r2Key = existing?.r2_thumbnail_key || null;
-  if (details && thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
+  if (thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
 
   let previousRaw = {};
   try { previousRaw = JSON.parse(existing?.raw_json || "{}"); } catch {}
