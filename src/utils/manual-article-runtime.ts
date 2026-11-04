@@ -93,14 +93,14 @@ export async function mountManualArticle(force = false) {
       title.dataset.akVi = post.title || "Bài viết";
       title.dataset.akEn = post.title_en || post.title || "Article";
       title.textContent = document.documentElement.dataset.akLocale === "en" ?
-        title.dataset.akEn : title.dataset.akVi ?? "";
+        (title.dataset.akEn ?? "") : (title.dataset.akVi ?? "");
     }
     const excerpt = byId("ak-live-excerpt");
     if (excerpt) {
       excerpt.dataset.akVi = post.excerpt || "";
       excerpt.dataset.akEn = post.excerpt_en || post.excerpt || "";
       excerpt.textContent = document.documentElement.dataset.akLocale === "en" ?
-        excerpt.dataset.akEn : excerpt.dataset.akVi ?? "";
+        (excerpt.dataset.akEn ?? "") : (excerpt.dataset.akVi ?? "");
       excerpt.classList.toggle("hidden", !post.excerpt && !post.excerpt_en);
     }
     const meta = byId("ak-live-meta");
