@@ -201,7 +201,7 @@ import "../utils/facebook-feed-runtime";
 		@apply translate-y-[var(--banner-height-extend)];
 	}
 	.enable-banner #top-row {
-		@apply h-[calc(var(--banner-height-home)_-_4.5rem)] transition-all duration-300
+		@apply h-[calc(var(--banner-height-home)_-_3.75rem)] transition-all duration-300
 	}
 	.enable-banner.is-home #sidebar-sticky {
 		@apply top-[calc(1rem_-_var(--banner-height-extend))]
@@ -469,7 +469,7 @@ const setup = () => {
 		if (!bannerEnabled) {
 			return
 		}
-		let threshold = window.innerHeight * (BANNER_HEIGHT / 100) - 72 - 16
+		let threshold = window.innerHeight * (BANNER_HEIGHT / 100) - 60 - 16
 		let navbar = document.getElementById('navbar-wrapper')
 		if (!navbar || !document.body.classList.contains('lg:is-home')) {
 			return
@@ -552,7 +552,7 @@ function scrollFunction() {
 
 	if (!bannerEnabled) return
 	if (navbar) {
-		const NAVBAR_HEIGHT = 72
+		const NAVBAR_HEIGHT = 60
 		const MAIN_PANEL_EXCESS_HEIGHT = MAIN_PANEL_OVERLAPS_BANNER_HEIGHT * 16			// The height the main panel overlaps the banner
 
 		let bannerHeight = BANNER_HEIGHT
