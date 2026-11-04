@@ -246,7 +246,4 @@ function akStartFacebookFeeds() {
 document.addEventListener("DOMContentLoaded", akStartFacebookFeeds);
 document.addEventListener("swup:page:view", akStartFacebookFeeds);
 document.addEventListener("astro:page-load", akStartFacebookFeeds);
-document.addEventListener("swup:visit:start", () => {
-  if (activeVideo) akResetVideo(activeVideo);
-});
 if (document.readyState !== "loading") akStartFacebookFeeds();
