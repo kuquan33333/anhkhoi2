@@ -6,7 +6,7 @@ description: "AI mở ra nhiều cách kể chuyện bằng hình ảnh, nhưng 
 descriptionEn: "AI expands visual storytelling, but a compelling idea and real emotion still matter most."
 tags: ["Video AI", "Sáng tạo", "Công nghệ"]
 category: "Video AI"
-draft: false
+draft: true
 ---
 
 <div class="ak-lang-vi">
