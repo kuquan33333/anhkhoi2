@@ -34,13 +34,14 @@ test("Fuwari text utilities and root background class are restored", () => {
   assert.match(layout, /class="bg-\[var\(--page-bg\)\] transition text-\[14px\] md:text-\[16px\]"/);
 });
 
-test("Light/dark/auto switch uses the original Fuwari component", () => {
+test("Light/dark/auto control preserves Fuwari three-mode behavior", () => {
   const navbar = read("src/components/Navbar.astro");
-  const switcher = read("src/components/LightDarkSwitch.svelte");
-  assert.match(navbar, /import LightDarkSwitch from "\.\/LightDarkSwitch\.svelte"/);
-  assert.match(navbar, /<LightDarkSwitch client:only="svelte"><\/LightDarkSwitch>/);
-  assert.doesNotMatch(navbar, /import \{ setTheme \}/);
-  assert.match(switcher, /const seq: LIGHT_DARK_MODE\[\] = \[LIGHT_MODE, DARK_MODE, AUTO_MODE\]/);
+  assert.match(navbar, /const themeSequence: ThemeMode\[\] = \[LIGHT_MODE, DARK_MODE, AUTO_MODE\]/);
+  assert.match(navbar, /data-theme-choice="light"/);
+  assert.match(navbar, /data-theme-choice="dark"/);
+  assert.match(navbar, /data-theme-choice="auto"/);
+  assert.match(navbar, /applyThemeToDocument\(getStoredTheme\(\)\)/);
+  assert.doesNotMatch(navbar, /document\.documentElement\.classList\.contains\("dark"\) \? "light" : "dark"/);
 });
 
 test("Old hue 224 is migrated once without overwriting other user choices", () => {
