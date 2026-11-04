@@ -320,9 +320,7 @@ function addCandidate(map, raw, baseUrl, text = "", extra = {}) {
       .filter(Boolean)
   )].slice(0, 12);
 
-  // Bare post/photo links are frequently Facebook navigation chrome, not feed items.
-  // Require actual card evidence for non-video content.
-  if ((itemType === "post" || itemType === "photo") && !anchorText && !imageUrls.length) return;
+  const verifiedByCard = !!anchorText || imageUrls.length > 0;
 
   const facebookId = facebookContentId(normalized);
   const incoming = {
@@ -333,6 +331,7 @@ function addCandidate(map, raw, baseUrl, text = "", extra = {}) {
     thumbnailUrl: extra.thumbnailUrl || imageUrls[0] || null,
     imageUrls,
     viewLabel: extra.viewLabel || null,
+    verifiedByCard,
   };
   const key = facebookId ? "id:" + facebookId : normalized;
   const existing = map.get(key);
@@ -346,6 +345,7 @@ function addCandidate(map, raw, baseUrl, text = "", extra = {}) {
     thumbnailUrl: existing.thumbnailUrl || incoming.thumbnailUrl,
     imageUrls: [...new Set([...(existing.imageUrls || []), ...incoming.imageUrls])].slice(0, 12),
     viewLabel: existing.viewLabel || incoming.viewLabel,
+    verifiedByCard: existing.verifiedByCard || incoming.verifiedByCard,
   });
 }
 
@@ -452,10 +452,90 @@ function mergeCandidateDetails(candidate, details) {
     mediaHeight: details?.mediaHeight || null,
     publishedAt: details?.publishedAt || null,
     blocked: !!details?.blocked,
+    source: details?.source || null,
   };
 }
 
+function pluginPostDetails(html, originalUrl) {
+  const source = String(html || "");
+  if (!source || /This post is no longer available|Nội dung này hiện không hiển thị/i.test(stripTags(source))) return null;
+
+  const messageMatch = source.match(/<div\b[^>]*data-testid=["']post_message["'][^>]*>([\s\S]*?)<\/div>/i);
+  const description = messageMatch ? stripTags(messageMatch[1]).trim() : "";
+
+  let canonical = "";
+  for (const tag of source.match(/<a\b[^>]*>/gi) || []) {
+    const href = attr(tag, "href");
+    if (/permalink\.php\?[^#]*story_fbid=\d{8,}/i.test(href || "")) {
+      canonical = normalizeFacebookUrl(href, "https://www.facebook.com") || "";
+      if (canonical) break;
+    }
+  }
+
+  const images = [];
+  for (const tag of source.match(/<img\b[^>]*>/gi) || []) {
+    const src = attr(tag, "src");
+    if (!src) continue;
+    let u;
+    try { u = new URL(src, "https://www.facebook.com"); } catch { continue; }
+    if (!u.hostname.endsWith(".fbcdn.net")) continue;
+    const cls = attr(tag, "class");
+    const width = Number(attr(tag, "width") || 0);
+    const height = Number(attr(tag, "height") || 0);
+    // _1p6f is Facebook's embedded post media image. Width/height is a safe fallback.
+    if (!/\b_1p6[fg]\b/.test(cls) && Math.max(width, height) < 180) continue;
+    if (!images.includes(u.toString())) images.push(u.toString());
+  }
+
+  const time = source.match(/\bdata-utime=["'](\d{9,12})["']/i);
+  let publishedAt = null;
+  if (time) {
+    const ms = Number(time[1]) * 1000;
+    if (Number.isFinite(ms)) publishedAt = new Date(ms).toISOString();
+  }
+
+  if (!description && !images.length) return null;
+  return {
+    canonical: canonical || normalizeFacebookUrl(originalUrl, originalUrl) || originalUrl,
+    title: "",
+    description,
+    image: images[0] || "",
+    images: images.slice(0, 20),
+    video: "",
+    mediaWidth: null,
+    mediaHeight: null,
+    publishedAt,
+    blocked: false,
+    source: "facebook-post-plugin",
+  };
+}
+
+async function detailPlugin(url) {
+  const type = classify(url);
+  if (type !== "post" && type !== "photo") return null;
+  try {
+    const plugin = new URL("https://www.facebook.com/plugins/post.php");
+    plugin.searchParams.set("href", url);
+    plugin.searchParams.set("show_text", "true");
+    plugin.searchParams.set("width", "500");
+    const response = await fetch(plugin.toString(), {
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; AnhKhoiMedia/1.0; +https://anhkhoi.pages.dev/)",
+        "accept-language": "vi,en;q=0.8",
+      },
+      redirect: "follow",
+    });
+    if (!response.ok) return null;
+    return pluginPostDetails(await response.text(), url);
+  } catch {
+    return null;
+  }
+}
+
 async function detailHttp(url) {
+  const pluginDetails = await detailPlugin(url);
+  if (pluginDetails) return pluginDetails;
+
   const variants = [url];
   const id = facebookContentId(url);
   if (id) variants.push("https://www.facebook.com/watch/?v=" + id);
@@ -557,10 +637,16 @@ async function savePublicImages(env, itemId, itemType, details) {
 }
 
 async function upsertItem(env, candidate, details, sourceUrl, status) {
-  const permalink = candidate.permalink || details?.canonical;
-  const facebookId = candidate.facebookId || facebookContentId(permalink);
+  const isPostLike = candidate.itemType === "post" || candidate.itemType === "photo";
+  const permalink = isPostLike
+    ? (details?.canonical || candidate.permalink)
+    : (candidate.permalink || details?.canonical);
+  const facebookId = facebookContentId(permalink) || candidate.facebookId;
   const fingerprint = await sha256Hex(permalink);
-  const sourceKey = candidate.permalink;
+  const sourceKey = permalink;
+  const resolvedType = isPostLike && classify(permalink) !== "unknown"
+    ? classify(permalink)
+    : candidate.itemType;
   const sourceCaption = details?.description || candidate.anchorText || details?.title || "";
   const caption = /^(facebook|log in to facebook|đăng nhập vào facebook)(?:[\s.\-:]|$)/i.test(sourceCaption.trim())
     ? "" : sourceCaption.slice(0, 20000);
@@ -606,11 +692,11 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
       "raw_json=? " +
       "WHERE id=?"
     ).bind(
-      facebookId, candidate.itemType, caption, caption, permalink, details?.publishedAt || null,
+      facebookId, resolvedType, caption, caption, permalink, details?.publishedAt || null,
       thumbnailUrl, r2Key, permalink || null, detectedEmbedStatus,
       status, status, rawJson, existing.id
     ).run();
-    await savePublicImages(env, existing.id, candidate.itemType, details);
+    await savePublicImages(env, existing.id, resolvedType, details);
     return "updated";
   }
 
@@ -618,10 +704,10 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
     "INSERT INTO facebook_items(source_key,facebook_id,permalink,item_type,caption,published_at,thumbnail_url,r2_thumbnail_key,embed_url,embed_status,status,fingerprint,raw_json) " +
     "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
   ).bind(
-    sourceKey, facebookId, permalink, candidate.itemType, caption, details?.publishedAt || null,
+    sourceKey, facebookId, permalink, resolvedType, caption, details?.publishedAt || null,
     thumbnailUrl, r2Key, permalink, detectedEmbedStatus || "unknown", status, fingerprint, rawJson
   ).run();
-  await savePublicImages(env, insertion.meta?.last_row_id, candidate.itemType, details);
+  await savePublicImages(env, insertion.meta?.last_row_id, resolvedType, details);
   return "inserted";
 }
 
@@ -837,7 +923,7 @@ async function sync(env, trigger = "cron") {
     .slice(0, maxItems);
   // HTTP metadata enrichment is cheap enough for a limited set in discovery.
   // Browser fallback remains in the separate enrichment queue.
-  const detailBudget = Math.min(12, maxItems);
+  const detailBudget = Math.min(32, maxItems);
   let detailed = 0;
 
   for (const candidate of candidates) {
@@ -862,10 +948,17 @@ async function sync(env, trigger = "cron") {
       const details = mergeCandidateDetails(candidate, fetched);
       const hasCaption = !!String(details.description || "").trim();
       const hasImage = !!(details.image || details.images?.length);
+      const pluginVerified = fetched?.source === "facebook-post-plugin";
+      if ((candidate.itemType === "photo" || candidate.itemType === "post") &&
+          !pluginVerified && !candidate.verifiedByCard) {
+        await logError(env, runId, "validate", candidate.permalink, "UNVERIFIED_POST_LINK",
+          "Skipped a bare Facebook post/photo link because the Post Plugin exposed no public content.");
+        continue;
+      }
       if ((candidate.itemType === "photo" && !hasImage) ||
           (candidate.itemType === "post" && !hasCaption && !hasImage)) {
         await logError(env, runId, "validate", candidate.permalink, "NO_CARD_EVIDENCE",
-          "Skipped a bare Facebook post/photo link without public caption or image evidence.");
+          "Skipped a Facebook post/photo candidate without public caption or image evidence.");
         continue;
       }
       const result = await upsertItem(env, candidate, details, candidate.sourceUrl, itemStatus);
