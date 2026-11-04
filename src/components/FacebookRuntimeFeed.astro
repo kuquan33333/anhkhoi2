@@ -1,142 +1,235 @@
 ---
-interface Props { mode?: "home" | "reels"; }
+interface Props { mode?: "home" | "reels" | "all"; }
 const { mode = "home" } = Astro.props;
 const isReels = mode === "reels";
+const isAll = mode === "all";
 ---
 <section class="ak-runtime-feed card-base p-6 md:p-7 mt-4 hidden"
   data-ak-runtime-feed data-mode={mode}
-  aria-label={isReels ? "Facebook Reels tự động" : "Nội dung mới từ Facebook"}>
+  aria-label={isReels ? "Facebook Reels tự động" : "Nội dung công khai từ Facebook"}>
   <div class="flex items-center justify-between gap-3 mb-4">
     <div>
       <span class="text-xs font-bold text-[var(--primary)]">FACEBOOK · AUTO SYNC</span>
       <h2 class="text-xl font-extrabold mt-1"
-        data-ak-vi={isReels ? "Reels mới tự động" : "Mới từ Facebook Anh Khôi"}
-        data-ak-en={isReels ? "Latest synced Reels" : "Latest from Anh Khoi on Facebook"}>
-        {isReels ? "Reels mới tự động" : "Mới từ Facebook Anh Khôi"}
+        data-ak-vi={isReels ? "Video và Reels" : isAll ? "Tất cả nội dung đã đồng bộ" : "Mới từ Facebook Anh Khôi"}
+        data-ak-en={isReels ? "Videos and Reels" : isAll ? "All synced public content" : "Latest from Anh Khoi on Facebook"}>
+        {isReels ? "Video và Reels" : isAll ? "Tất cả nội dung đã đồng bộ" : "Mới từ Facebook Anh Khôi"}
       </h2>
     </div>
-    {!isReels && <a href="/reels/" class="text-sm font-bold text-[var(--primary)]">Xem video →</a>}
+    {mode === "home" && <a href="/facebook/" class="text-sm font-bold text-[var(--primary)]">Xem tất cả →</a>}
+    {isReels && <a href="/facebook/" class="text-sm font-bold text-[var(--primary)]">Bài viết & ảnh →</a>}
   </div>
   <div class="ak-runtime-grid" data-runtime-grid></div>
-  <div class="ak-runtime-player hidden" data-runtime-player>
-    <div class="ak-runtime-player-inner" data-runtime-player-inner></div>
-    <a class="mt-3 inline-block text-sm font-bold text-[var(--primary)]"
-      data-runtime-fallback target="_blank" rel="noopener noreferrer">
-      <span data-ak-vi="Mở trên Facebook ↗" data-ak-en="Open on Facebook ↗">Mở trên Facebook ↗</span>
-    </a>
-  </div>
+  {! (mode === "home") && <div class="ak-runtime-more-wrap">
+    <button type="button" class="ak-runtime-more" data-runtime-more hidden>Xem thêm bài đăng</button>
+  </div>}
+  <p class="ak-runtime-notice hidden" data-runtime-notice role="status"></p>
 </section>
 
 <script>
-function makeEl(tag, className, text) {
+function akNode(tag, className, text) {
   const el = document.createElement(tag);
   if (className) el.className = className;
-  if (text != null) el.textContent = text;
+  if (text !== undefined && text !== null) el.textContent = String(text);
   return el;
 }
-function mediaUrl(item) {
-  if (item.r2_thumbnail_key) return "/api/media?key=" + encodeURIComponent(item.r2_thumbnail_key);
-  return item.thumbnail_url || "/assets/anhkhoi-cover.webp";
-}
-function validFacebookUrl(raw) {
+function akFacebookUrl(raw) {
   try {
     const u = new URL(raw);
     return u.protocol === "https:" && (u.hostname === "facebook.com" || u.hostname.endsWith(".facebook.com"));
   } catch { return false; }
 }
-function openRuntimePlayer(section, href) {
-  if (!validFacebookUrl(href)) return;
-  const region = section.querySelector("[data-runtime-player]");
-  const inner = section.querySelector("[data-runtime-player-inner]");
-  const fallback = section.querySelector("[data-runtime-fallback]");
-  if (!region || !inner || !fallback) return;
-  const plugin = new URL("https://www.facebook.com/plugins/video.php");
-  plugin.searchParams.set("href", href);
-  plugin.searchParams.set("show_text", "false");
-  const playerWidth = Math.max(280, Math.min(760, window.innerWidth - 32));
-  plugin.searchParams.set("width", String(playerWidth));
+function akImageUrl(key, fallback) {
+  if (key && /^(?:facebook|admin)\/[A-Za-z0-9/_\-.]+$/.test(key))
+    return "/api/media?key=" + encodeURIComponent(key);
+  try {
+    const u = new URL(fallback);
+    if (u.protocol === "https:") return u.toString();
+  } catch {}
+  return "/assets/anhkhoi-cover.webp";
+}
+function akAspect(item) {
+  const w = Number(item.mediaWidth);
+  const h = Number(item.mediaHeight);
+  if (w > 0 && h > 0 && w / h >= 0.3 && w / h <= 3.5) return w + " / " + h;
+  return item.item_type === "reel" ? "9 / 16" : "16 / 9";
+}
+function akDate(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.valueOf())) return "";
+  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium" }).format(d);
+}
+function akPlayer(card, item, button) {
+  const existing = card.querySelector("[data-ak-embed]");
+  if (existing) {
+    existing.remove();
+    button.textContent = item.item_type === "reel" || item.item_type === "video" ? "▶ Phát video tại đây" : "Xem bài tại đây";
+    button.setAttribute("aria-expanded", "false");
+    return;
+  }
+  if (!akFacebookUrl(item.permalink)) return;
+  const isVideo = item.item_type === "reel" || item.item_type === "video";
+  const container = akNode("div", "ak-runtime-embed");
+  container.dataset.akEmbed = "1";
+  if (isVideo) container.style.aspectRatio = akAspect(item);
+  else container.classList.add("ak-runtime-embed-post");
+
+  const plugin = new URL("https://www.facebook.com/plugins/" + (isVideo ? "video.php" : "post.php"));
+  plugin.searchParams.set("href", item.permalink);
+  plugin.searchParams.set("show_text", "true");
+  plugin.searchParams.set("width", String(Math.min(680, Math.max(300, Math.floor(card.getBoundingClientRect().width - 32)))));
   const iframe = document.createElement("iframe");
+  iframe.title = (isVideo ? "Trình phát video Facebook" : "Bài đăng Facebook") + " - Anh Khôi";
   iframe.src = plugin.toString();
-  iframe.title = "Facebook video - Anh Khôi";
   iframe.loading = "eager";
   iframe.allow = "encrypted-media; clipboard-write; fullscreen; picture-in-picture";
   iframe.setAttribute("allowfullscreen", "");
-  inner.replaceChildren(iframe);
-  fallback.href = href;
-  region.classList.remove("hidden");
-  region.scrollIntoView({ behavior: "smooth", block: "center" });
+  container.appendChild(iframe);
+
+  const hint = akNode("p", "ak-runtime-embed-hint", "Nếu Facebook không cho phát hoặc hiện nội dung, hãy dùng liên kết bài gốc bên dưới.");
+  const anchor = akNode("a", "ak-runtime-link", "Mở bài gốc trên Facebook ↗");
+  anchor.href = item.permalink;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  const region = akNode("div", "ak-runtime-embed-region");
+  region.append(container, hint, anchor);
+  region.dataset.akEmbed = "1";
+  card.appendChild(region);
+  button.textContent = "Đóng trình xem";
+  button.setAttribute("aria-expanded", "true");
+  region.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
-async function initRuntimeFeed(section) {
+function akCard(item) {
+  const card = akNode("article", "ak-runtime-card");
+  const gallery = akNode("div", "ak-runtime-gallery");
+  const media = Array.isArray(item.media) ? item.media.filter(m => m && m.type === "image") : [];
+  const sources = media.length
+    ? media.map(m => ({ key: m.r2_key, url: m.source_url }))
+    : [{ key: item.r2_thumbnail_key, url: item.thumbnail_url }];
+  for (const source of sources.slice(0, 20)) {
+    const figure = akNode("figure", "ak-runtime-poster");
+    const img = document.createElement("img");
+    img.src = akImageUrl(source.key, source.url);
+    img.alt = item.caption ? String(item.caption).slice(0, 140) : "Ảnh hoặc ảnh đại diện video Facebook";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.addEventListener("error", () => {
+      if (!img.src.endsWith("/assets/anhkhoi-cover.webp")) img.src = "/assets/anhkhoi-cover.webp";
+    });
+    figure.appendChild(img);
+    gallery.appendChild(figure);
+  }
+  card.appendChild(gallery);
+
+  const body = akNode("div", "ak-runtime-body");
+  const labels = [String(item.item_type || "post").toUpperCase()];
+  if (item.viewLabel) labels.push(item.viewLabel + " lượt xem");
+  const date = akDate(item.published_at);
+  if (date) labels.push(date);
+  body.appendChild(akNode("div", "ak-runtime-meta", labels.join(" · ")));
+  const caption = akNode("p", "ak-runtime-caption",
+    item.caption || "Facebook chưa cung cấp caption công khai cho nội dung này.");
+  body.appendChild(caption);
+
+  if (akFacebookUrl(item.permalink)) {
+    const actions = akNode("div", "ak-runtime-actions");
+    const isVideo = item.item_type === "reel" || item.item_type === "video";
+    const play = akNode("button", "ak-cta", isVideo ? "▶ Phát video tại đây" : "Xem bài tại đây");
+    play.type = "button";
+    play.setAttribute("aria-expanded", "false");
+    play.addEventListener("click", () => akPlayer(card, item, play));
+    actions.appendChild(play);
+    const link = akNode("a", "ak-runtime-link", "Facebook ↗");
+    link.href = item.permalink;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    actions.appendChild(link);
+    body.appendChild(actions);
+  }
+  card.appendChild(body);
+  return card;
+}
+function akStartFeed(section) {
   if (section.dataset.loaded === "1") return;
   section.dataset.loaded = "1";
   const mode = section.dataset.mode || "home";
   const endpoint = mode === "reels" ? "/api/reels" : "/api/feed";
-  try {
-    const response = await fetch(endpoint, { headers: { accept: "application/json" } });
-    if (!response.ok) return;
-    const payload = await response.json();
-    const items = Array.isArray(payload.items) ? payload.items : [];
-    if (!payload.enabled || !items.length) return;
-    const grid = section.querySelector("[data-runtime-grid]");
-    if (!grid) return;
-    const limit = mode === "reels" ? 100 : 6;
-    for (const item of items.slice(0, limit)) {
-      const card = makeEl("article", "ak-runtime-card");
-      const poster = makeEl("div", "ak-runtime-poster");
-      const img = document.createElement("img");
-      img.src = mediaUrl(item);
-      img.alt = item.caption ? String(item.caption).slice(0, 120) : "Facebook Anh Khôi";
-      img.loading = "lazy";
-      img.decoding = "async";
-      img.onerror = () => { img.src = "/assets/anhkhoi-cover.webp"; };
-      poster.appendChild(img);
-      const body = makeEl("div", "ak-runtime-body");
-      const metaText = (item.item_type || "post").toUpperCase() + (item.viewLabel ? (" · " + item.viewLabel + " lượt xem") : "");
-      const meta = makeEl("div", "ak-runtime-meta", metaText);
-      const fallbackCaption = item.item_type === "reel" || item.item_type === "video" ? "Reel mới từ Facebook Anh Khôi." : "Nội dung mới từ Facebook Anh Khôi.";
-      const caption = makeEl("p", "ak-runtime-caption", item.caption || fallbackCaption);
-      body.append(meta, caption);
-      if (validFacebookUrl(item.permalink)) {
-        const actions = makeEl("div", "ak-runtime-actions");
-        if (item.item_type === "reel" || item.item_type === "video") {
-          const play = makeEl("button", "ak-cta", "▶ Phát video");
-          play.type = "button";
-          play.addEventListener("click", () => openRuntimePlayer(section, item.permalink));
-          actions.appendChild(play);
-        }
-        const link = makeEl("a", "ak-runtime-link", "Facebook ↗");
-        link.href = item.permalink;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        actions.appendChild(link);
-        body.appendChild(actions);
+  const pageSize = mode === "home" ? 6 : 24;
+  const grid = section.querySelector("[data-runtime-grid]");
+  const more = section.querySelector("[data-runtime-more]");
+  const notice = section.querySelector("[data-runtime-notice]");
+  let offset = 0;
+  let loading = false;
+
+  async function loadMore() {
+    if (loading || !grid) return;
+    loading = true;
+    if (more) { more.disabled = true; more.textContent = "Đang tải…"; }
+    try {
+      const res = await fetch(endpoint + "?limit=" + pageSize + "&offset=" + offset, {
+        headers: { accept: "application/json" }
+      });
+      if (!res.ok) throw new Error("failed_to_fetch_feed");
+      const data = await res.json();
+      if (!data.enabled) {
+        if (notice) { notice.textContent = "Nguồn Facebook hiện chưa được bật hiển thị."; notice.classList.remove("hidden"); }
+        section.classList.remove("hidden");
+        if (more) more.hidden = true;
+        return;
       }
-      card.append(poster, body);
-      grid.appendChild(card);
+      const items = Array.isArray(data.items) ? data.items : [];
+      for (const item of items) grid.appendChild(akCard(item));
+      offset = Number(data.nextOffset) || offset + items.length;
+      if (!offset && notice) {
+        notice.textContent = "Chưa tìm thấy bài đăng Facebook công khai để hiển thị.";
+        notice.classList.remove("hidden");
+      }
+      section.classList.remove("hidden");
+      if (more) more.hidden = !data.hasMore;
+    } catch {
+      if (notice) {
+        notice.textContent = "Không tải được nội dung lúc này. Bạn có thể thử lại.";
+        notice.classList.remove("hidden");
+      }
+      section.classList.remove("hidden");
+      if (more) more.hidden = false;
+    } finally {
+      loading = false;
+      if (more) { more.disabled = false; more.textContent = "Xem thêm bài đăng"; }
     }
-    section.classList.remove("hidden");
-  } catch { /* Runtime feed must never break the static Fuwari page. */ }
+  }
+  more?.addEventListener("click", loadMore);
+  loadMore();
 }
-function bootRuntimeFeeds() {
-  document.querySelectorAll("[data-ak-runtime-feed]").forEach(el => initRuntimeFeed(el));
+function akBootFeeds() {
+  document.querySelectorAll("[data-ak-runtime-feed]").forEach(akStartFeed);
 }
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bootRuntimeFeeds);
-else bootRuntimeFeeds();
-document.addEventListener("astro:page-load", bootRuntimeFeeds);
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", akBootFeeds);
+else akBootFeeds();
+document.addEventListener("astro:page-load", akBootFeeds);
 </script>
 
 <style is:global>
-.ak-runtime-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
-.ak-runtime-card{overflow:hidden;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg)}
-.ak-runtime-poster{aspect-ratio:9/13;background:#0b1830;overflow:hidden;position:relative}
-.ak-runtime-poster img{width:100%;height:100%;object-fit:cover;display:block}
-.ak-runtime-body{padding:1rem}.ak-runtime-meta{font-size:.7rem;font-weight:850;color:var(--primary);letter-spacing:.08em}
-.ak-runtime-caption{margin-top:.45rem;line-height:1.6;font-size:.9rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-.ak-runtime-actions{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:.9rem}
-.ak-runtime-link{font-size:.82rem;font-weight:750;color:var(--primary)}
-.ak-runtime-player{margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--line-color)}
-.ak-runtime-player-inner{width:min(100%,760px);height:min(78vh,820px);min-height:520px;margin:auto;background:#050a13;border-radius:1rem;overflow:hidden}
-.ak-runtime-player-inner iframe{width:100%;height:100%;border:0;display:block}
-@media(max-width:760px){.ak-runtime-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ak-runtime-player-inner{height:72vh;min-height:460px}}
-@media(max-width:480px){.ak-runtime-grid{grid-template-columns:1fr}}
+.ak-runtime-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.ak-runtime-card{overflow:hidden;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg);min-width:0}
+.ak-runtime-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.35rem;background:#0b1830}
+.ak-runtime-poster{display:flex;justify-content:center;align-items:center;margin:0;min-height:150px;max-height:600px;overflow:hidden}
+.ak-runtime-poster img{display:block;width:100%;height:auto;max-height:600px;object-fit:contain}
+.ak-runtime-body{padding:1rem}
+.ak-runtime-meta{font-size:.72rem;font-weight:800;color:var(--primary);letter-spacing:.06em}
+.ak-runtime-caption{margin-top:.6rem;line-height:1.7;font-size:.94rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.ak-runtime-actions{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:1rem}
+.ak-runtime-link{font-size:.85rem;font-weight:750;color:var(--primary);text-decoration:underline}
+.ak-runtime-embed-region{padding:0 1rem 1rem}
+.ak-runtime-embed{width:min(100%,680px);margin:auto;background:#050a13;overflow:hidden;border-radius:.75rem}
+.ak-runtime-embed iframe{width:100%;height:100%;border:0;display:block}
+.ak-runtime-embed-post{aspect-ratio:auto;height:650px;max-height:80vh}
+.ak-runtime-embed-hint{font-size:.77rem;color:var(--text-75);margin:.6rem 0}
+.ak-runtime-more-wrap{display:flex;justify-content:center;margin-top:1.2rem}
+.ak-runtime-more{border:1px solid var(--primary);border-radius:99px;padding:.65rem 1.5rem;font-weight:800;color:var(--primary)}
+.ak-runtime-more[hidden]{display:none}
+.ak-runtime-more:disabled{opacity:.6}
+.ak-runtime-notice{font-size:.9rem;padding:1rem;color:var(--text-75)}
+@media(max-width:760px){.ak-runtime-grid{grid-template-columns:1fr}}
 </style>
