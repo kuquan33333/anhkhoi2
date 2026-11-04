@@ -12,9 +12,7 @@ const { mode = "home" } = Astro.props;
   )}
   <div class="ak-manual-list" data-manual-grid></div>
   <p class="ak-manual-message hidden card-base px-6 py-5 text-75" data-manual-status role="status"></p>
-  <div class="ak-manual-pagination" data-manual-pagination hidden>
-    <button type="button" class="btn-regular rounded-xl px-6 py-3 font-bold" data-manual-more>Xem thêm bài viết</button>
-  </div>
+  <nav class="ak-manual-pagination" data-manual-pagination hidden aria-label="Phân trang bài viết"></nav>
 </section>
 
 <style is:global>
@@ -42,9 +40,23 @@ a.ak-editorial-meta-part:hover{color:var(--primary)}
 .ak-editorial-chevron{position:absolute;display:grid;place-items:center;top:1rem;right:1rem;bottom:1rem;width:3.25rem;border-radius:.8rem;color:var(--primary);background:var(--btn-regular-bg);font-size:2rem}
 .ak-editorial-card.has-cover .ak-editorial-chevron{display:none}
 .ak-editorial-title a:focus-visible,.ak-editorial-cover:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
-.ak-manual-pagination{display:flex;justify-content:center;margin:1rem 0}
+.ak-manual-pagination{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:.45rem;margin:1.1rem 0 .3rem}
 .ak-manual-pagination[hidden]{display:none}
+.ak-page-link{min-width:2.55rem;height:2.55rem;padding:0 .8rem;border-radius:.72rem;display:inline-flex;align-items:center;justify-content:center;background:var(--card-bg);color:var(--text-75);border:1px solid var(--line-color);font-size:.9rem;font-weight:800;text-decoration:none}
+.ak-page-link:hover,.ak-page-link:focus-visible{color:var(--primary);background:var(--btn-plain-bg-hover);outline:none}
+.ak-page-link.is-current{background:var(--primary);border-color:var(--primary);color:#fff;pointer-events:none}
+.ak-page-link.is-arrow{font-size:1.15rem}
+.ak-page-ellipsis{min-width:1.7rem;text-align:center;color:var(--text-30);font-weight:800}
 .ak-manual-message{font-size:.94rem}
+@media(max-width:767px){
+.ak-editorial-main{padding:1.2rem 1.15rem 1.25rem}
+.ak-editorial-title{font-size:1.25rem;line-height:1.38;margin-bottom:.7rem}
+.ak-editorial-meta{column-gap:.7rem;row-gap:.4rem;margin:.7rem 0 .85rem}
+.ak-editorial-excerpt{font-size:.92rem;line-height:1.65}
+.ak-editorial-cover{aspect-ratio:auto;min-height:0;margin:.7rem .7rem 0;background:transparent}
+.ak-editorial-cover img{height:auto;max-height:19rem;object-fit:contain;background:var(--btn-regular-bg)}
+.ak-page-link{min-width:2.35rem;height:2.35rem;padding:0 .68rem;font-size:.84rem}
+}
 @media(min-width:768px){
 .ak-editorial-card{display:block;min-height:190px}
 .ak-editorial-main{padding:1.7rem 1.6rem 1.5rem 2.25rem;width:calc(100% - 4rem)}
