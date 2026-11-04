@@ -34,7 +34,7 @@ export async function onRequestPost({ request, env }) {
     ).bind(username).first();
 
     const challenge = await env.DB.prepare(
-      "SELECT id,nonce,expires_at FROM admin_login_challenges WHERE id=? AND expires_at>datetime('now') LIMIT 1"
+      "SELECT id,nonce,expires_at FROM admin_login_challenges WHERE id=? AND datetime(expires_at)>datetime('now') LIMIT 1"
     ).bind(challengeId).first();
 
     // Consume the challenge regardless of success so a proof cannot be replayed.
