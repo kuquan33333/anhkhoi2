@@ -8,12 +8,26 @@ function isFacebookHost(hostname) {
 
 
 function htmlDecode(value) {
-  return String(value || "")
-    .replace(/&amp;/gi, "&")
+  let text = String(value || "");
+  // Facebook public HTML may contain numeric entities such as &#x1ebf;,
+  // sometimes escaped twice as &amp;#x1ebf;. Decode before saving to D1.
+  for (let pass = 0; pass < 3; pass++) {
+    const next = text
+      .replace(/&amp;(?=#(?:x[0-9a-f]{1,6}|[0-9]{1,7});)/gi, "&")
+      .replace(/&#(?:x([0-9a-f]{1,6})|([0-9]{1,7}));/gi, (match, hex, dec) => {
+        const code = Number.parseInt(hex || dec || "", hex ? 16 : 10);
+        return code > 0 && code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF)
+          ? String.fromCodePoint(code) : match;
+      });
+    if (text === next) break;
+    text = next;
+  }
+  return text
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&apos;|&#39;/gi, "'")
     .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">");
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&");
 }
 
 function unescapeFacebookHtml(value) {
