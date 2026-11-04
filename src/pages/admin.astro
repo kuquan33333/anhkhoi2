@@ -129,7 +129,7 @@ function b64urlDecode(value){
   return Uint8Array.from(atob(s),ch=>ch.charCodeAt(0));
 }
 async function deriveLoginProof(password,challenge){
-  const key=await crypto.subtle.importKey(
+  const passwordKey=await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
     "PBKDF2",
@@ -143,10 +143,19 @@ async function deriveLoginProof(password,challenge){
       salt:b64urlDecode(challenge.salt),
       iterations:Number(challenge.iterations)
     },
-    key,
+    passwordKey,
     256
   );
-  return b64urlBytes(new Uint8Array(bits));
+  const hmacKey=await crypto.subtle.importKey(
+    "raw",
+    bits,
+    {name:"HMAC",hash:"SHA-256"},
+    false,
+    ["sign"]
+  );
+  const message=new TextEncoder().encode(challenge.challengeId+"."+challenge.nonce);
+  const signature=await crypto.subtle.sign("HMAC",hmacKey,message);
+  return b64urlBytes(new Uint8Array(signature));
 }
 
 async function api(url, options={}) {
@@ -250,7 +259,7 @@ $("#loginForm").addEventListener("submit",async e=>{
     const proof=await deriveLoginProof($("#password").value,challenge);
     const {r,data}=await api("/api/admin/login-proof",{
       method:"POST",
-      body:JSON.stringify({username:$("#username").value,proof})
+      body:JSON.stringify({username:$("#username").value,challengeId:challenge.challengeId,proof})
     });
     if(!r.ok){
       const extra=[data.stage,data.detail].filter(Boolean).join(" · ");
