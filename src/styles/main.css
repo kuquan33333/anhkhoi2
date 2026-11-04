@@ -3,6 +3,7 @@
 @layer components {
     .card-base {
         @apply rounded-[var(--radius-large)] overflow-hidden bg-[var(--card-bg)] transition;
+        color: var(--text-primary);
     }
     h1, h2, h3, h4, h5, h6, p, a, span, li, ul, ol, blockquote, code, pre, table, th, td, strong {
         @apply transition;
@@ -77,21 +78,10 @@
         display: none;
     }
 
-    .text-90 {
-        @apply text-black/90 dark:text-white/90
-    }
-    .text-75 {
-        @apply text-black/75 dark:text-white/75
-    }
-    .text-50 {
-        @apply text-black/50 dark:text-white/50
-    }
-    .text-30 {
-        @apply text-black/30 dark:text-white/30
-    }
-    .text-25 {
-        @apply text-black/25 dark:text-white/25
-    }
+    .text-90 { color: var(--text-primary); }
+    .text-75 { color: var(--text-75); }
+    .text-50 { color: var(--text-50); }
+    .text-30, .text-25 { color: var(--text-30); }
 
     .meta-icon {
         @apply w-8 h-8 transition rounded-md flex items-center justify-center bg-[var(--btn-regular-bg)]
@@ -153,6 +143,10 @@
 
 /* Anh Khoi: Vietnamese-first accessibility and bilingual controls. */
 :root { font-synthesis:none; }
+/* html and body must always use the SAME Fuwari theme surface. */
+:root { color-scheme:light; background-color:var(--page-bg); color:var(--text-primary); }
+:root.dark { color-scheme:dark; }
+html, body { background-color:var(--page-bg); color:var(--text-primary); }
 body { font-family: Roboto,"Segoe UI",system-ui,sans-serif; text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased; }
 .ak-lang-switch{display:inline-flex;align-items:center;gap:4px;margin-right:9px;background:var(--btn-regular-bg);border:1px solid var(--line-color);border-radius:11px;padding:5px 7px;white-space:nowrap}
 .ak-lang-switch button{border:0;background:transparent;border-radius:7px;cursor:pointer;font-weight:800;font-size:12px;min-width:25px;padding:5px 3px;color:var(--text-50);transition:background .2s,color .2s}
@@ -161,8 +155,8 @@ body { font-family: Roboto,"Segoe UI",system-ui,sans-serif; text-rendering:optim
 html:not([data-ak-locale="en"]) .ak-lang-en{display:none!important}
 html[data-ak-locale="en"] .ak-lang-vi{display:none!important}
 .ak-home-lead{padding:1.7rem 2rem;margin-bottom:1rem;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg)}
-.ak-home-lead h1{font-size:clamp(1.35rem,3vw,2.1rem);font-weight:850;line-height:1.36;letter-spacing:-.035em;color:#172336;margin:.2rem 0 .65rem}
-.ak-home-lead p{color:#57657a;line-height:1.9;max-width:43rem;font-size:.94rem}
+.ak-home-lead h1{font-size:clamp(1.35rem,3vw,2.1rem);font-weight:850;line-height:1.36;letter-spacing:-.035em;color:var(--text-primary);margin:.2rem 0 .65rem}
+.ak-home-lead p{color:var(--text-75);line-height:1.9;max-width:43rem;font-size:.94rem}
 .ak-home-lead .ak-actions{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.3rem}
 .ak-home-lead .ak-actions a,.ak-cta{display:inline-flex;align-items:center;justify-content:center;border-radius:.65rem;padding:.6rem 1rem;font-size:.85rem;font-weight:750;background:var(--primary);color:#fff;transition:transform .2s}
 .ak-home-lead .ak-actions a:hover,.ak-cta:hover{transform:translateY(-2px)}
@@ -177,7 +171,9 @@ html[data-ak-locale="en"] .ak-lang-vi{display:none!important}
 .ak-reel .ak-reel-desc p{font-size:.78rem;color:var(--text-50);margin-top:.3rem;line-height:1.7}
 .ak-reel-embed{width:min(100%,760px);height:min(78vh,820px);min-height:520px;margin:0 auto;background:#050a13;border-radius:10px;overflow:hidden}
 .ak-reel-embed iframe{width:100%;height:100%;border:0;display:block}
-.ak-about-body{line-height:2}
+.ak-about-body{line-height:2;color:var(--text-primary)}
+.ak-about-body h1,.ak-about-body h2,.ak-about-body h3{color:var(--text-primary);line-height:1.35;margin:1em 0 .45em}
+.ak-about-body h2{font-weight:800;font-size:1.45rem}
 .ak-about-body h1{font-size:2.1rem;font-weight:850;margin-bottom:.75rem}
 .ak-about-body p{margin:1rem 0}
 .ak-about-body a{color:var(--primary);font-weight:750}
@@ -185,8 +181,8 @@ html[data-ak-locale="en"] .ak-lang-vi{display:none!important}
 
 /* Make the custom intro card follow Fuwari's light/dark theme. */
 html.dark .ak-home-lead{color:#f2f6ff;background:var(--card-bg);border-color:var(--line-color)}
-html.dark .ak-home-lead h1{color:#f6f9ff}
-html.dark .ak-home-lead p{color:#b7c4d8}
+html.dark .ak-home-lead h1{color:var(--text-primary)}
+html.dark .ak-home-lead p{color:var(--text-75)}
 html.dark .ak-home-lead .ak-actions a:first-child{color:#ffffff}
 html.dark .ak-home-lead .ak-actions a:nth-child(2){color:var(--btn-content)}
 
