@@ -6,7 +6,7 @@ description: "Theo dõi tin nóng rất thú vị, nhưng nguồn tin và bối 
 descriptionEn: "Following breaking tech stories is exciting, but sources and context matter more than sharing first."
 tags: ["Tin mới", "Công nghệ", "AI"]
 category: "Công nghệ"
-draft: false
+draft: true
 ---
 
 <div class="ak-lang-vi">
