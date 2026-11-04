@@ -154,6 +154,8 @@
 /* Anh Khoi: Vietnamese-first accessibility and bilingual controls. */
 :root { font-synthesis:none; }
 body { font-family: Roboto,"Segoe UI",system-ui,sans-serif; text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased; }
+.ak-taxonomy-category{width:100%;justify-content:space-between!important;text-align:left!important}
+.ak-taxonomy-category .ak-taxonomy-label{display:block;min-width:0;flex:1;text-align:left!important;overflow-wrap:anywhere}
 .ak-lang-switch{display:inline-flex;align-items:center;gap:4px;margin-right:9px;background:var(--btn-regular-bg);border:1px solid var(--line-color);border-radius:11px;padding:5px 7px;white-space:nowrap}
 .ak-lang-switch button{border:0;background:transparent;border-radius:7px;cursor:pointer;font-weight:800;font-size:12px;min-width:25px;padding:5px 3px;color:var(--text-50);transition:background .2s,color .2s}
 .ak-lang-switch button.ak-lang-current{background:var(--primary);color:white}
@@ -183,7 +185,7 @@ html[data-ak-locale="en"] .ak-lang-vi{display:none!important}
 .ak-about-body h1{font-size:2.1rem;font-weight:850;margin-bottom:.75rem}
 .ak-about-body p{margin:1rem 0}
 .ak-about-body a{color:var(--primary);font-weight:750}
-@media(max-width:640px){.ak-lang-switch{margin-right:3px;padding:4px 5px}.ak-lang-switch button{min-width:22px;font-size:11px}.ak-home-lead{padding:1.3rem}.ak-reels-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.ak-lang-switch{margin-right:2px;padding:3px 4px}.ak-lang-switch button{min-width:21px;font-size:10px;padding:4px 2px}.ak-home-lead{padding:1.15rem;margin-bottom:.75rem}.ak-home-lead h1{font-size:1.35rem;line-height:1.32}.ak-home-lead p{font-size:.9rem;line-height:1.7}.ak-reels-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* Make the custom intro card follow Fuwari's light/dark theme. */
 html.dark .ak-home-lead{color:#f2f6ff;background:var(--card-bg);border-color:var(--line-color)}
