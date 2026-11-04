@@ -127,6 +127,12 @@ test("deep sync source plan includes profile, posts, photos, videos and reels", 
   assert.ok(list.some(x=>x.includes("reels_tab")));
 });
 
+test("canonical story migration can match the original photo key and photo ID", () => {
+  assert.match(workerSource, /originalSourceKey = candidate\.permalink/);
+  assert.match(workerSource, /originalFacebookId = candidate\.facebookId/);
+  assert.match(workerSource, /OR \(\? IS NOT NULL AND source_key=\?\) OR \(\? IS NOT NULL AND facebook_id=\?\)/);
+});
+
 test("Only Facebook links are accepted for discovered content", () => {
   assert.equal(
     helpers.normalizeFacebookUrl("/reel/1234567890123", "https://www.facebook.com/profile.php?id=61595505020148"),
