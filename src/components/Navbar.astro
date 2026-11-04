@@ -23,17 +23,18 @@ let links: NavBarLink[] = navBarConfig.links.map(
     <div class="absolute h-8 left-0 right-0 -top-8 bg-[var(--card-bg)] transition"></div> <!-- used for onload animation -->
     <div class:list={[
         className,
-        "card-base !overflow-visible max-w-[var(--page-width)] h-[4.5rem] !rounded-t-none mx-auto flex items-center justify-between px-4"]}>
-        <a href={url('/')} class="btn-plain scale-animation rounded-lg h-[3.25rem] px-5 font-bold active:scale-95">
-            <div class="flex flex-row text-[var(--primary)] items-center text-md">
-                <img src={url("/favicon-ak.png")} alt="" width="34" height="34" class="w-[1.9rem] h-[1.9rem] mr-2 rounded-md object-cover" loading="eager" decoding="async" />
-                {siteConfig.title}
+        "card-base !overflow-visible max-w-[var(--page-width)] h-[3.5rem] md:h-[3.75rem] !rounded-t-none mx-auto flex items-center justify-between px-2 md:px-3"]}>
+        <a href={url('/')} class="btn-plain scale-animation rounded-lg h-10 px-2 md:px-3 font-bold active:scale-95 shrink-0">
+            <div class="flex flex-row text-[var(--primary)] items-center text-sm md:text-[0.95rem] whitespace-nowrap">
+                <img src={url("/favicon-ak.png")} alt="" width="30" height="30" class="w-[1.55rem] h-[1.55rem] md:w-[1.7rem] md:h-[1.7rem] mr-2 rounded-md object-cover" loading="eager" decoding="async" />
+                <span class="hidden sm:inline">Anh Khôi</span>
+                <span class="hidden 2xl:inline ml-1">AI Media</span>
             </div>
         </a>
-        <div class="hidden md:flex">
+        <div class="hidden xl:flex items-center">
             {links.map((l) => {
                 return <a aria-label={l.name} href={l.external ? l.url : url(l.url)} target={l.external ? "_blank" : null}
-                          class="btn-plain scale-animation rounded-lg h-11 font-bold px-5 active:scale-95"
+                          class="btn-plain scale-animation rounded-lg h-10 font-bold text-sm px-3 active:scale-95"
                 >
                     <div class="flex items-center">
                         <span data-ak-vi={l.name} data-ak-en={l.url==="/"?"Home":l.url==="/archive/"?"Articles":l.url==="/about/"?"About":l.url==="/reels/"?"AI Videos":l.url==="/facebook/"?"Facebook feed":"Facebook"}>{l.name}</span>
@@ -42,21 +43,21 @@ let links: NavBarLink[] = navBarConfig.links.map(
                 </a>;
             })}
         </div>
-        <div class="flex">
+        <div class="flex items-center gap-0.5">
             <!--<SearchPanel client:load>-->
             <Search client:only="svelte"></Search>
             {!siteConfig.themeColor.fixed && (
-                    <button aria-label="Display Settings" class="btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90" id="display-settings-switch">
+                    <button aria-label="Display Settings" class="hidden lg:!flex btn-plain scale-animation rounded-lg h-10 w-10 active:scale-90" id="display-settings-switch">
                         <Icon name="material-symbols:palette-outline" class="text-[1.25rem]"></Icon>
                     </button>
             )}
             <div class="relative z-50" id="scheme-control">
-                <button type="button" aria-label="Chế độ giao diện" class="relative btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90" id="scheme-switch">
+                <button type="button" aria-label="Chế độ giao diện" class="relative btn-plain scale-animation rounded-lg h-10 w-10 active:scale-90" id="scheme-switch">
                     <Icon data-theme-icon="light" name="material-symbols:wb-sunny-outline-rounded" class="absolute text-[1.25rem]" />
                     <Icon data-theme-icon="dark" name="material-symbols:dark-mode-outline-rounded" class="absolute text-[1.25rem] hidden" />
                     <Icon data-theme-icon="auto" name="material-symbols:radio-button-partial-outline" class="absolute text-[1.25rem] hidden" />
                 </button>
-                <div id="light-dark-panel" class="hidden lg:block absolute transition float-panel-closed top-11 -right-2 pt-5">
+                <div id="light-dark-panel" class="hidden lg:block absolute transition float-panel-closed top-10 -right-2 pt-4">
                     <div class="card-base float-panel p-2">
                         <button type="button" data-theme-choice="light" class="flex transition whitespace-nowrap items-center !justify-start w-full btn-plain scale-animation rounded-lg h-9 px-3 font-medium active:scale-95 mb-0.5">
                             <Icon name="material-symbols:wb-sunny-outline-rounded" class="text-[1.25rem] mr-3" /><span data-ak-vi="Sáng" data-ak-en="Light">Sáng</span>
@@ -70,7 +71,7 @@ let links: NavBarLink[] = navBarConfig.links.map(
                     </div>
                 </div>
             </div>
-            <button aria-label="Menu" name="Nav Menu" class="btn-plain scale-animation rounded-lg w-11 h-11 active:scale-90 md:!hidden" id="nav-menu-switch">
+            <button aria-label="Menu" name="Nav Menu" class="btn-plain scale-animation rounded-lg w-10 h-10 active:scale-90 xl:!hidden" id="nav-menu-switch">
                 <Icon name="material-symbols:menu-rounded" class="text-[1.25rem]"></Icon>
             </button>
         </div>
