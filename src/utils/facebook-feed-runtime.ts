@@ -4,6 +4,29 @@ type AkFbItem = {
   mediaWidth?: number | null; mediaHeight?: number | null;
   media?: Array<{ type?: string; r2_key?: string | null; source_url?: string | null }>;
 };
+/** Decode numeric HTML entities that Facebook exposes in public captions.
+ * Text is assigned using textContent, so entities cannot introduce HTML.
+ */
+function akDecodeFacebookCaption(input?: string | null): string {
+  let text = String(input || "");
+  for (let pass = 0; pass < 3; pass++) {
+    const next = text
+      .replace(/&amp;(?=#(?:x[0-9a-f]{1,6}|[0-9]{1,7});)/gi, "&")
+      .replace(/&#(?:x([0-9a-f]{1,6})|([0-9]{1,7}));/gi, (match, hex: string | undefined, dec: string | undefined) => {
+        const code = Number.parseInt(hex || dec || "", hex ? 16 : 10);
+        return code > 0 && code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF)
+          ? String.fromCodePoint(code) : match;
+      });
+    if (next === text) break;
+    text = next;
+  }
+  return text
+    .replace(/&(quot|apos|lt|gt|nbsp|amp);/gi, (_match, entity: string) => {
+      const map: Record<string, string> = { quot: '"', apos: "'", lt: "<", gt: ">", nbsp: " ", amp: "&" };
+      return map[entity.toLowerCase()] || _match;
+    });
+}
+
 const posters = new WeakMap<HTMLElement, Node[]>();
 let activeVideo: HTMLElement | null = null;
 
@@ -93,7 +116,7 @@ function akVideoShell(item: AkFbItem): HTMLElement {
   if (item.item_type === "reel") shell.classList.add("is-reel");
   shell.style.aspectRatio = akFbAspect(item);
   const poster = akCreate("div", "ak-runtime-video-poster");
-  const img = akFbImage(item.r2_thumbnail_key, item.thumbnail_url, item.caption || "Video Facebook");
+  const img = akFbImage(item.r2_thumbnail_key, item.thumbnail_url, akDecodeFacebookCaption(item.caption) || "Video Facebook");
   img.loading = "lazy";
   poster.append(img);
   if (akSafeFacebookUrl(item.permalink)) {
@@ -149,7 +172,7 @@ function akFbCard(item: AkFbItem): HTMLElement {
       : [{ key: item.r2_thumbnail_key, url: item.thumbnail_url }];
     for (const src of sources.slice(0, 20)) {
       const figure = akCreate("figure", "ak-runtime-poster");
-      figure.append(akFbImage(src.key, src.url, item.caption));
+      figure.append(akFbImage(src.key, src.url, akDecodeFacebookCaption(item.caption)));
       gallery.append(figure);
     }
     card.append(gallery);
@@ -162,7 +185,7 @@ function akFbCard(item: AkFbItem): HTMLElement {
   if (date) labels.push(date);
   body.append(akCreate("div", "ak-runtime-meta", labels.join(" · ")));
   body.append(akCreate("p", "ak-runtime-caption",
-    item.caption || "Facebook chưa cung cấp caption công khai cho nội dung này."));
+    akDecodeFacebookCaption(item.caption) || "Facebook chưa cung cấp caption công khai cho nội dung này."));
   if (akSafeFacebookUrl(item.permalink)) {
     const actions = akCreate("div", "ak-runtime-actions");
     if (!isVideo) {
