@@ -33,15 +33,15 @@ export async function onRequestPatch({ request, env, params }) {
   const title = String(body?.title ?? current.title).trim();
   const slug = slugify(body?.slug ?? current.slug ?? title);
   if (!title || !slug) return json({ ok:false, error:"title_required" }, 400);
-  const status = body?.status === "published" ? "published" : "draft";
+  const status = body?.status === "published" ? "published" : body?.status === "draft" ? "draft" : current.status;
   const publishedAt = pubDate(body?.publishedAt,
     current.published_at || (status === "published" ? new Date().toISOString() : null));
-  const language = body?.language === "en" ? "en" : "vi";
+  const language = body?.language === "en" ? "en" : body?.language === "vi" ? "vi" : current.language;
   let oldTags = []; try { oldTags = JSON.parse(current.tags_json || "[]"); } catch {}
   const tags = Array.isArray(body?.tags) ?
     body.tags.map(x => String(x).trim()).filter(Boolean).slice(0,20) : oldTags;
-  const cover = typeof body?.coverR2Key === "string" && /^admin\/[A-Za-z0-9/_\-.]+$/.test(body.coverR2Key)
-    ? body.coverR2Key : null;
+  const cover = typeof body?.coverR2Key !== "string" ? current.cover_r2_key :
+    /^admin\/[A-Za-z0-9/_\-.]+$/.test(body.coverR2Key) ? body.coverR2Key : null;
   try {
     await env.DB.prepare(
       "UPDATE manual_posts SET slug=?,title=?,title_en=?,excerpt=?,excerpt_en=?,body_markdown=?,body_markdown_en=?," +
@@ -51,7 +51,7 @@ export async function onRequestPatch({ request, env, params }) {
       String(body?.excerptEn ?? current.excerpt_en ?? "").slice(0,1000),
       String(body?.bodyMarkdown ?? current.body_markdown ?? ""),
       String(body?.bodyMarkdownEn ?? current.body_markdown_en ?? ""),language,
-      body?.category ? String(body.category).slice(0,80) : null,JSON.stringify(tags),
+      body?.category === undefined ? current.category : body.category ? String(body.category).slice(0,80) : null,JSON.stringify(tags),
       cover,status,publishedAt,params.id
     ).run();
     return json({ ok:true,id:Number(params.id),slug,status,publishedAt });
