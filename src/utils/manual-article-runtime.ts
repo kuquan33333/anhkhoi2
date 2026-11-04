@@ -3,51 +3,9 @@ import MarkdownIt from "markdown-it";
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true, typographer: true });
 let controller: AbortController | null = null;
 let renderVersion = 0;
-const RETURN_KEY = "anhkhoi.article.return";
-
 function byId(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
-function isSafeBackTarget(candidate: string): boolean {
-  try {
-    const next = new URL(candidate, location.origin);
-    return next.origin === location.origin &&
-      (next.pathname === "/" || next.pathname.startsWith("/archive/") ||
-       /^\/\d+\/$/.test(next.pathname)) &&
-      !next.href.includes("javascript:");
-  } catch { return false; }
-}
-
-/** Bypass Swup for article back links. Native navigation works even when
- * the archive was loaded from Swup's cache or the user entered by a direct URL.
- * Keep the real href so keyboard, long-press and opening a new tab still work.
- */
-document.addEventListener("click", event => {
-  if (!(event.target instanceof Element)) return;
-  const back = event.target.closest<HTMLAnchorElement>(
-    "#ak-live-back, .ak-article-footer a[data-no-swup]"
-  );
-  if (!back || event.button !== 0 || event.ctrlKey || event.metaKey ||
-      event.shiftKey || event.altKey) return;
-  const target = back.href;
-  if (!isSafeBackTarget(target)) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  window.location.assign(target);
-}, true);
-
-/** Remember the in-site page where the reader clicked on a manual post. */
-document.addEventListener("click", event => {
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  const link = target.closest<HTMLAnchorElement>("a[href]");
-  if (!link) return;
-  const next = new URL(link.href, location.href);
-  if (next.origin !== location.origin || next.pathname !== "/bai-viet/") return;
-  if (isSafeBackTarget(location.href)) {
-    try { sessionStorage.setItem(RETURN_KEY, location.href); } catch {}
-  }
-});
 
 function showArticleError(message: string) {
   byId("ak-live-loading")?.classList.add("hidden");
@@ -74,16 +32,6 @@ export async function mountManualArticle(force = false) {
   byId("ak-live-loading")?.classList.remove("hidden");
   byId("ak-live-error")?.classList.add("hidden");
   byId("ak-live-content")?.classList.add("hidden");
-
-  const backLink = byId("ak-live-back") as HTMLAnchorElement | null;
-  if (backLink) {
-    let returnUrl = "/archive/";
-    try {
-      const candidate = sessionStorage.getItem(RETURN_KEY) || "";
-      if (isSafeBackTarget(candidate)) returnUrl = candidate;
-    } catch {}
-    backLink.href = returnUrl;
-  }
 
   if (!slug || slug.length > 120) {
     showArticleError("Đường dẫn bài viết không hợp lệ. Bạn có thể quay lại danh sách bài viết.");

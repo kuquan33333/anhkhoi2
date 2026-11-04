@@ -50,11 +50,11 @@ test("The public Fuwari theme is not overridden by Admin's dark background", () 
   assert.match(admin, /body\.ak-admin-page\{[^}]*radial-gradient/);
 });
 
-test("The article Back button navigates without Swup interception", () => {
+test("The article Back button uses a plain GET form to archive", () => {
   const page = read("src/pages/bai-viet.astro");
   const runtime = read("src/utils/manual-article-runtime.ts");
-  assert.match(page, /data-no-swup id="ak-live-back"/);
-  assert.match(runtime, /event\.stopImmediatePropagation\(\)/);
-  assert.match(runtime, /window\.location\.assign\(target\)/);
-  assert.match(runtime, /}, true\);/);
+  assert.match(page, /<form action="\/archive\/" method="get" class="inline">\s*<button type="submit" id="ak-live-back"/);
+  assert.match(page, /<button type="submit" class="ak-article-back[^>]*>← Xem các bài viết khác<\/button>/);
+  assert.doesNotMatch(runtime, /RETURN_KEY|sessionStorage|isSafeBackTarget|window\.location\.assign/);
+  assert.doesNotMatch(page, /data-no-swup id="ak-live-back"/);
 });
