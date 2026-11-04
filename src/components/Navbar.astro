@@ -4,7 +4,6 @@ import { navBarConfig, siteConfig } from "../config";
 import { LinkPresets } from "../constants/link-presets";
 import { LinkPreset, type NavBarLink } from "../types/config";
 import { url } from "../utils/url-utils";
-import LightDarkSwitch from "./LightDarkSwitch.svelte";
 import Search from "./Search.svelte";
 import DisplaySettings from "./widget/DisplaySettings.svelte";
 import NavMenuPanel from "./widget/NavMenuPanel.astro";
@@ -51,7 +50,26 @@ let links: NavBarLink[] = navBarConfig.links.map(
                         <Icon name="material-symbols:palette-outline" class="text-[1.25rem]"></Icon>
                     </button>
             )}
-            <LightDarkSwitch client:only="svelte"></LightDarkSwitch>
+            <div class="relative z-50" id="scheme-control">
+                <button type="button" aria-label="Chế độ giao diện" class="relative btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90" id="scheme-switch">
+                    <Icon data-theme-icon="light" name="material-symbols:wb-sunny-outline-rounded" class="absolute text-[1.25rem]" />
+                    <Icon data-theme-icon="dark" name="material-symbols:dark-mode-outline-rounded" class="absolute text-[1.25rem] hidden" />
+                    <Icon data-theme-icon="auto" name="material-symbols:radio-button-partial-outline" class="absolute text-[1.25rem] hidden" />
+                </button>
+                <div id="light-dark-panel" class="hidden lg:block absolute transition float-panel-closed top-11 -right-2 pt-5">
+                    <div class="card-base float-panel p-2">
+                        <button type="button" data-theme-choice="light" class="flex transition whitespace-nowrap items-center !justify-start w-full btn-plain scale-animation rounded-lg h-9 px-3 font-medium active:scale-95 mb-0.5">
+                            <Icon name="material-symbols:wb-sunny-outline-rounded" class="text-[1.25rem] mr-3" /><span data-ak-vi="Sáng" data-ak-en="Light">Sáng</span>
+                        </button>
+                        <button type="button" data-theme-choice="dark" class="flex transition whitespace-nowrap items-center !justify-start w-full btn-plain scale-animation rounded-lg h-9 px-3 font-medium active:scale-95 mb-0.5">
+                            <Icon name="material-symbols:dark-mode-outline-rounded" class="text-[1.25rem] mr-3" /><span data-ak-vi="Tối" data-ak-en="Dark">Tối</span>
+                        </button>
+                        <button type="button" data-theme-choice="auto" class="flex transition whitespace-nowrap items-center !justify-start w-full btn-plain scale-animation rounded-lg h-9 px-3 font-medium active:scale-95">
+                            <Icon name="material-symbols:radio-button-partial-outline" class="text-[1.25rem] mr-3" /><span data-ak-vi="Theo hệ thống" data-ak-en="System">Theo hệ thống</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
             <button aria-label="Menu" name="Nav Menu" class="btn-plain scale-animation rounded-lg w-11 h-11 active:scale-90 md:!hidden" id="nav-menu-switch">
                 <Icon name="material-symbols:menu-rounded" class="text-[1.25rem]"></Icon>
             </button>
@@ -62,23 +80,84 @@ let links: NavBarLink[] = navBarConfig.links.map(
 </div>
 
 <script>
+import { AUTO_MODE, DARK_MODE, LIGHT_MODE } from "../constants/constants";
+import { applyThemeToDocument, getStoredTheme, setTheme } from "../utils/setting-utils";
+
+const themeSequence = [LIGHT_MODE, DARK_MODE, AUTO_MODE];
+
+function syncThemeControls() {
+    const mode = getStoredTheme();
+    document.querySelectorAll<HTMLElement>("[data-theme-icon]").forEach(icon => {
+        icon.classList.toggle("hidden", icon.dataset.themeIcon !== mode);
+    });
+    document.querySelectorAll<HTMLElement>("[data-theme-choice]").forEach(button => {
+        button.classList.toggle("current-theme-btn", button.dataset.themeChoice === mode);
+    });
+}
+
+function chooseTheme(mode: string) {
+    if (!themeSequence.includes(mode as typeof LIGHT_MODE)) return;
+    setTheme(mode as typeof LIGHT_MODE);
+    syncThemeControls();
+}
+
 function loadButtonScript() {
+    const switchBtn = document.getElementById("scheme-switch");
+    const schemeControl = document.getElementById("scheme-control");
+    const panel = document.getElementById("light-dark-panel");
+
+    if (switchBtn && switchBtn.dataset.boundTheme !== "1") {
+        switchBtn.dataset.boundTheme = "1";
+        switchBtn.addEventListener("click", () => {
+            const current = getStoredTheme();
+            const index = Math.max(0, themeSequence.indexOf(current));
+            chooseTheme(themeSequence[(index + 1) % themeSequence.length]);
+        });
+    }
+    if (schemeControl && schemeControl.dataset.boundThemePanel !== "1") {
+        schemeControl.dataset.boundThemePanel = "1";
+        schemeControl.addEventListener("mouseenter", () => panel?.classList.remove("float-panel-closed"));
+        schemeControl.addEventListener("mouseleave", () => panel?.classList.add("float-panel-closed"));
+    }
+    document.querySelectorAll<HTMLElement>("[data-theme-choice]").forEach(button => {
+        if (button.dataset.boundThemeChoice === "1") return;
+        button.dataset.boundThemeChoice = "1";
+        button.addEventListener("click", () => {
+            chooseTheme(button.dataset.themeChoice || AUTO_MODE);
+            panel?.classList.add("float-panel-closed");
+        });
+    });
+
     let settingBtn = document.getElementById("display-settings-switch");
-    if (settingBtn) {
-        settingBtn.onclick = function () {
-            let settingPanel = document.getElementById("display-setting");
-            if (settingPanel) settingPanel.classList.toggle("float-panel-closed");
-        };
+    if (settingBtn && settingBtn.dataset.boundDisplay !== "1") {
+        settingBtn.dataset.boundDisplay = "1";
+        settingBtn.addEventListener("click", () => {
+            document.getElementById("display-setting")?.classList.toggle("float-panel-closed");
+        });
     }
 
     let menuBtn = document.getElementById("nav-menu-switch");
-    if (menuBtn) {
-        menuBtn.onclick = function () {
-            let menuPanel = document.getElementById("nav-menu-panel");
-            if (menuPanel) menuPanel.classList.toggle("float-panel-closed");
-        };
+    if (menuBtn && menuBtn.dataset.boundMenu !== "1") {
+        menuBtn.dataset.boundMenu = "1";
+        menuBtn.addEventListener("click", () => {
+            document.getElementById("nav-menu-panel")?.classList.toggle("float-panel-closed");
+        });
     }
+    applyThemeToDocument(getStoredTheme());
+    syncThemeControls();
 }
+
+const media = window.matchMedia("(prefers-color-scheme: dark)");
+if (!(window as any).__akThemeMediaBound) {
+    (window as any).__akThemeMediaBound = true;
+    media.addEventListener("change", () => {
+        if (getStoredTheme() === AUTO_MODE) {
+            applyThemeToDocument(AUTO_MODE);
+            syncThemeControls();
+        }
+    });
+}
+
 loadButtonScript();
 document.addEventListener("swup:page:view", loadButtonScript);
 </script>
