@@ -39,15 +39,7 @@ const isAll = mode === "all";
 .ak-runtime-player-shell.is-reel{width:min(100%,380px)}
 .ak-runtime-video-poster{position:absolute;inset:0;background:#0a1428}
 .ak-runtime-video-poster img{display:block;width:100%;height:100%;object-fit:contain}
-.ak-runtime-overlay-play{position:absolute;inset:0;width:100%;height:100%;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;cursor:pointer;background:linear-gradient(180deg,transparent 38%,rgba(0,0,0,.24));color:#fff}
-.ak-runtime-overlay-play:hover{background:rgba(0,0,0,.15)}
-.ak-runtime-overlay-play:focus-visible{outline:4px solid #fff;outline-offset:-6px}
-.ak-runtime-play-icon{display:grid;place-items:center;width:4.8rem;height:4.8rem;min-height:4.8rem;border-radius:50%;font-size:2.1rem;line-height:1;color:#fff;background:rgba(14,54,100,.84);border:2px solid rgba(255,255,255,.9);text-indent:.22rem;box-shadow:0 4px 25px #0008;transition:transform .2s}
-.ak-runtime-overlay-play:hover .ak-runtime-play-icon{transform:scale(1.08)}
-.ak-runtime-play-caption{background:#07101fcc;color:#fff;border-radius:99px;padding:.38rem .85rem;font-size:.84rem;font-weight:750}
 .ak-runtime-video-iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#0a1428}
-.ak-runtime-player-close{position:absolute;z-index:2;right:.65rem;top:.65rem;border-radius:99px;border:1px solid #ffffff90;padding:.34rem .75rem;color:#fff;background:#07101fcc;font-size:.78rem;font-weight:750;cursor:pointer}
-.ak-runtime-player-close:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .ak-runtime-body{padding:1.1rem}
 .ak-runtime-meta{font-size:.76rem;font-weight:800;color:var(--primary);letter-spacing:.03em}
 .ak-runtime-caption{color:var(--text-primary);margin-top:.75rem;line-height:1.75;font-size:.94rem;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -61,5 +53,4 @@ const isAll = mode === "all";
 .ak-runtime-more:disabled{opacity:.6}
 .ak-runtime-notice{font-size:.9rem;padding:1rem;color:var(--text-75)}
 @media(max-width:760px){.ak-runtime-grid{grid-template-columns:1fr}.ak-runtime-player-shell.is-reel{width:min(100%,370px)}}
-@media(prefers-reduced-motion:reduce){.ak-runtime-play-icon,.ak-runtime-overlay-play{transition:none}}
 </style>
