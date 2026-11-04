@@ -66,7 +66,10 @@ test("public API lists only published items with tags and stable pagination", as
     seen.push(sql);
     return { bind(...params) {
       seen.push(params);
-      return { async all() { return { results:[sample] }; } };
+      return {
+        async all() { return { results:[sample] }; },
+        async first() { return sql.includes("COUNT(*)") ? { total: 1 } : null; }
+      };
     }, async first() {return {value:"true"};} };
   } } };
   const response = await listPosts({ request: new Request("https://example.com/api/manual-posts?limit=8"), env });
@@ -74,9 +77,24 @@ test("public API lists only published items with tags and stable pagination", as
   assert.equal(data.enabled,true);
   assert.equal(data.posts[0].slug,"sample");
   assert.deepEqual(data.posts[0].tags,["AI"]);
+  assert.equal(data.total,1);
   assert.equal(data.nextOffset,1);
   assert.equal(data.hasMore,false);
   assert.ok(seen.some(x => typeof x === "string" && x.includes("status='published'")));
+});
+
+
+test("editorial feed uses numbered URL pagination instead of load-more", () => {
+  const component = read("src/components/ManualPostsFeed.astro");
+  const runtime = read("src/utils/manual-feed-runtime.ts");
+  assert.ok(component.includes('data-manual-pagination'));
+  assert.ok(component.includes('aria-label="Phân trang bài viết"'));
+  assert.ok(!component.includes("Xem thêm bài viết"));
+  assert.ok(!runtime.includes("data-manual-more"));
+  assert.ok(runtime.includes("pageWindow"));
+  assert.ok(runtime.includes('u.searchParams.set("page", String(page))'));
+  assert.ok(runtime.includes("pageSize: 6"));
+  assert.ok(runtime.includes("offset"));
 });
 
 test("sidebar reads current taxonomy from D1 instead of stale static markdown", async () => {
