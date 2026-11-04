@@ -86,7 +86,7 @@ test("sidebar categories stay left aligned regardless of btn-plain defaults", ()
 test("mobile editorial covers keep their natural image ratio instead of cropping", () => {
   const feed = source("src/components/ManualPostsFeed.astro");
   assert.ok(feed.includes("@media(max-width:767px)"));
-  assert.ok(feed.includes(".ak-editorial-cover{aspect-ratio:auto;min-height:0"));
+  assert.ok(feed.includes(".ak-editorial-cover{aspect-ratio:16/9;min-height:0"));
   assert.ok(feed.includes("object-fit:contain"));
 });
 
