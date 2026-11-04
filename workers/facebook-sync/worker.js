@@ -846,8 +846,10 @@ async function sync(env, trigger = "cron") {
         "SELECT id,caption,thumbnail_url,published_at FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
       ).bind(candidate.permalink, candidate.facebookId || null, candidate.facebookId || null).first();
       let fetched = null;
-      const needsDetails = !exists || !exists.caption || !exists.thumbnail_url ||
-        candidate.itemType === "post" || candidate.itemType === "photo";
+      const candidateHasCardData = !!candidate.anchorText && !!candidate.thumbnailUrl;
+      const needsDetails =
+        candidate.itemType === "post" || candidate.itemType === "photo" ||
+        (!candidateHasCardData && (!exists || !exists.caption || !exists.thumbnail_url));
       if (needsDetails && detailed < detailBudget) {
         detailed++;
         try {
