@@ -1,0 +1,26 @@
+name: Anh Khoi - UI regression check
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck Astro and client code
+        run: pnpm check
+      - name: UI regression tests
+        run: node --test tests/ui-regressions.test.mjs
+      - name: Production build
+        run: pnpm build
