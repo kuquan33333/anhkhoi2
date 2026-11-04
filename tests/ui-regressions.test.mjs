@@ -30,12 +30,12 @@ test("static Fuwari articles include back navigation", () => {
   assert.ok(source("src/pages/posts/[...slug].astro").includes('aria-label="Quay lại danh sách bài viết"'));
 });
 
-test("admin cards match desktop cover-on-right layout", () => {
+test("unified editorial cards preserve Fuwari cover-on-right layout", () => {
   const page = source("src/components/ManualPostsFeed.astro");
   const client = source("src/utils/manual-feed-runtime.ts");
-  assert.ok(page.includes(".ak-manual-card.has-cover .ak-manual-content"));
-  assert.ok(page.includes(".ak-manual-cover{position:absolute;right:"));
-  assert.ok(page.includes("@media(max-width:760px)"));
+  assert.ok(page.includes(".ak-editorial-card.has-cover .ak-editorial-main"));
+  assert.ok(page.includes(".ak-editorial-cover{position:absolute;top:1rem;right:1rem;"));
+  assert.ok(page.includes("@media(min-width:768px)"));
   assert.ok(client.includes('document.addEventListener("swup:page:view"'));
 });
 
