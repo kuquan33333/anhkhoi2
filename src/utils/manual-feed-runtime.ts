@@ -5,7 +5,7 @@ type EditorialPost = {
   published_at: string | null; words?: number; minutes?: number;
 };
 type EditorialFeed = {
-  key: string; offset: number; fetching: boolean; hasMore: boolean; pageSize: number;
+  key: string; page: number; fetching: boolean; totalPages: number; pageSize: number;
 };
 const editorialStates = new WeakMap<HTMLElement, EditorialFeed>();
 const iconPaths: Record<string, string> = {
@@ -139,18 +139,67 @@ function setFilterLabel(section: HTMLElement) {
     u.searchParams.has("uncategorized") ? "Bài viết chưa phân loại" :
     "Tất cả bài viết, sắp xếp theo ngày mới nhất.";
 }
+function requestedPage(): number {
+  const raw = Number.parseInt(new URL(location.href).searchParams.get("page") || "1", 10);
+  return Number.isInteger(raw) && raw > 0 ? Math.min(raw, 999) : 1;
+}
+function pageHref(page: number): string {
+  const u = new URL(location.href);
+  if (page <= 1) u.searchParams.delete("page");
+  else u.searchParams.set("page", String(page));
+  return u.pathname + (u.searchParams.size ? "?" + u.searchParams.toString() : "") + u.hash;
+}
+function pageWindow(current: number, total: number): Array<number | "ellipsis"> {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, "ellipsis", total];
+  if (current >= total - 3) return [1, "ellipsis", total - 4, total - 3, total - 2, total - 1, total];
+  return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total];
+}
+function renderPagination(section: HTMLElement, state: EditorialFeed) {
+  const nav = section.querySelector<HTMLElement>("[data-manual-pagination]");
+  if (!nav) return;
+  nav.replaceChildren();
+  if (state.totalPages <= 1) {
+    nav.hidden = true;
+    return;
+  }
+  nav.hidden = false;
+  const link = (label: string, page: number, cls = "") => {
+    const a = el("a", "ak-page-link " + cls, label);
+    a.href = pageHref(page);
+    a.setAttribute("aria-label", page === state.page ? "Trang " + page + ", trang hiện tại" : "Đi tới trang " + page);
+    if (page === state.page) {
+      a.classList.add("is-current");
+      a.setAttribute("aria-current", "page");
+    }
+    return a;
+  };
+  if (state.page > 1) {
+    const prev = link("‹", state.page - 1, "is-arrow");
+    prev.setAttribute("aria-label", "Trang trước");
+    nav.append(prev);
+  }
+  for (const item of pageWindow(state.page, state.totalPages)) {
+    if (item === "ellipsis") nav.append(el("span", "ak-page-ellipsis", "…"));
+    else nav.append(link(String(item), item));
+  }
+  if (state.page < state.totalPages) {
+    const next = link("›", state.page + 1, "is-arrow");
+    next.setAttribute("aria-label", "Trang sau");
+    nav.append(next);
+  }
+}
 async function loadPosts(section: HTMLElement, state: EditorialFeed) {
-  if (state.fetching || !state.hasMore || !section.isConnected) return;
+  if (state.fetching || !section.isConnected) return;
   state.fetching = true;
-  const more = section.querySelector<HTMLButtonElement>("[data-manual-more]");
-  const wrap = section.querySelector<HTMLElement>("[data-manual-pagination]");
+  const nav = section.querySelector<HTMLElement>("[data-manual-pagination]");
   const notice = section.querySelector<HTMLElement>("[data-manual-status]");
   const grid = section.querySelector<HTMLElement>("[data-manual-grid]");
-  if (more) { more.disabled = true; more.textContent = "Đang tải…"; }
+  if (nav) nav.hidden = true;
   try {
     const params = new URLSearchParams(state.key);
     params.set("limit", String(state.pageSize));
-    params.set("offset", String(state.offset));
+    params.set("offset", String((state.page - 1) * state.pageSize));
     const response = await fetch("/api/manual-posts?" + params.toString(), {
       headers: { Accept: "application/json" }
     });
@@ -158,49 +207,59 @@ async function loadPosts(section: HTMLElement, state: EditorialFeed) {
     const data = await response.json();
     if (!section.isConnected || state.key !== queryFor(section)) return;
     const posts: EditorialPost[] = Array.isArray(data.posts) ? data.posts : [];
+    const total = Math.max(0, Number(data.total || 0));
+    state.totalPages = total > 0 ? Math.ceil(total / state.pageSize) : 0;
+
+    if (state.totalPages && state.page > state.totalPages) {
+      state.page = state.totalPages;
+      history.replaceState(history.state, "", pageHref(state.page));
+      state.fetching = false;
+      return void loadPosts(section, state);
+    }
+
+    grid?.replaceChildren(...posts.map(makeCard));
     if (!data.enabled) {
-      if (notice) { notice.textContent = "Danh sách bài viết hiện đang được ẩn trong quản trị."; notice.classList.remove("hidden"); }
-      state.hasMore = false;
-    } else if (!state.offset && posts.length === 0) {
-      if (notice) { notice.textContent = "Chưa có bài viết nào trong danh sách này."; notice.classList.remove("hidden"); }
-      state.hasMore = false;
+      if (notice) {
+        notice.textContent = "Danh sách bài viết hiện đang được ẩn trong quản trị.";
+        notice.classList.remove("hidden");
+      }
+      state.totalPages = 0;
+    } else if (posts.length === 0) {
+      if (notice) {
+        notice.textContent = "Chưa có bài viết nào trong danh sách này.";
+        notice.classList.remove("hidden");
+      }
     } else {
-      grid?.append(...posts.map(makeCard));
-      state.offset = Number(data.nextOffset) || state.offset + posts.length;
-      state.hasMore = !!data.hasMore;
       notice?.classList.add("hidden");
     }
-    if (wrap) wrap.hidden = !state.hasMore;
+    renderPagination(section, state);
   } catch {
     if (notice) {
       notice.textContent = "Không thể tải danh sách bài viết. Hãy thử lại.";
       notice.classList.remove("hidden");
     }
-    if (wrap) wrap.hidden = false;
+    if (nav) nav.hidden = true;
   } finally {
     state.fetching = false;
-    if (more) { more.disabled = false; more.textContent = "Xem thêm bài viết"; }
   }
 }
 function bootPosts() {
   document.querySelectorAll<HTMLElement>("[data-ak-manual-feed]").forEach(section => {
     const key = queryFor(section);
-    let state = editorialStates.get(section);
-    if (state && state.key === key) return;
+    const page = requestedPage();
+    const previous = editorialStates.get(section);
+    if (previous && previous.key === key && previous.page === page) return;
     section.querySelector("[data-manual-grid]")?.replaceChildren();
     section.querySelector("[data-manual-status]")?.classList.add("hidden");
     setFilterLabel(section);
-    const mode = section.dataset.mode;
-    state = { key, offset: 0, fetching: false, hasMore: true, pageSize: mode === "home" ? 8 : 30 };
+    const state: EditorialFeed = {
+      key,
+      page,
+      fetching: false,
+      totalPages: 0,
+      pageSize: 6
+    };
     editorialStates.set(section, state);
-    const more = section.querySelector("[data-manual-more]");
-    if (more && !more.hasAttribute("data-bound")) {
-      more.setAttribute("data-bound", "1");
-      more.addEventListener("click", () => {
-        const s = editorialStates.get(section);
-        if (s) void loadPosts(section, s);
-      });
-    }
     void loadPosts(section, state);
   });
 }
