@@ -118,6 +118,37 @@ const title = "Admin · Anh Khôi AI Media";
 <script is:inline>
 let csrf = sessionStorage.getItem("ak_csrf") || "";
 const $ = (s) => document.querySelector(s);
+
+function b64urlBytes(bytes){
+  let s=""; for(const b of bytes) s+=String.fromCharCode(b);
+  return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+}
+function b64urlDecode(value){
+  let s=String(value||"").replace(/-/g,"+").replace(/_/g,"/");
+  while(s.length%4)s+="=";
+  return Uint8Array.from(atob(s),ch=>ch.charCodeAt(0));
+}
+async function deriveLoginProof(password,challenge){
+  const key=await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits=await crypto.subtle.deriveBits(
+    {
+      name:"PBKDF2",
+      hash:"SHA-256",
+      salt:b64urlDecode(challenge.salt),
+      iterations:Number(challenge.iterations)
+    },
+    key,
+    256
+  );
+  return b64urlBytes(new Uint8Array(bits));
+}
+
 async function api(url, options={}) {
   options.headers = {"content-type":"application/json", ...(options.headers||{})};
   if (csrf && options.method && options.method !== "GET") options.headers["x-admin-csrf"] = csrf;
@@ -205,7 +236,36 @@ async function loadMedia(){
   document.querySelectorAll("[data-insert]").forEach(el=>el.addEventListener("click",()=>insertMarkdownImage(el.dataset.insert)));
   document.querySelectorAll("[data-delete-media]").forEach(el=>el.addEventListener("click",async()=>{if(!confirm("Xóa ảnh này khỏi R2? Bài đang dùng ảnh có thể bị mất ảnh."))return;const {data}=await api("/api/admin/media?key="+encodeURIComponent(el.dataset.deleteMedia),{method:"DELETE"});$("#mediaMsg").textContent=data.ok?"Đã xóa ảnh":"Xóa thất bại";if(data.ok)await loadMedia();}));
 }
-$("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#loginMsg").textContent="Đang đăng nhập…";const {r,data}=await api("/api/admin/login",{method:"POST",body:JSON.stringify({username:$("#username").value,password:$("#password").value})});if(!r.ok){$("#loginMsg").textContent=data.error||"Đăng nhập thất bại";return}csrf=data.csrfToken;sessionStorage.setItem("ak_csrf",csrf);$("#loginMsg").textContent="";await init();});
+$("#loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const msg=$("#loginMsg");
+  msg.textContent="Đang xác thực…";
+  try{
+    const challengeRes=await fetch("/api/admin/challenge",{cache:"no-store",headers:{accept:"application/json"}});
+    const challenge=await challengeRes.json().catch(()=>({ok:false,error:"challenge_invalid_response"}));
+    if(!challengeRes.ok||!challenge.ok){
+      msg.textContent=challenge.error||"Không lấy được thông tin xác thực";
+      return;
+    }
+    const proof=await deriveLoginProof($("#password").value,challenge);
+    const {r,data}=await api("/api/admin/login-proof",{
+      method:"POST",
+      body:JSON.stringify({username:$("#username").value,proof})
+    });
+    if(!r.ok){
+      const extra=[data.stage,data.detail].filter(Boolean).join(" · ");
+      msg.textContent=(data.error||"Đăng nhập thất bại")+(extra?" · "+extra:"");
+      return;
+    }
+    csrf=data.csrfToken;
+    sessionStorage.setItem("ak_csrf",csrf);
+    $("#password").value="";
+    msg.textContent="";
+    await init();
+  }catch(err){
+    msg.textContent="login_client_error · "+String(err?.message||err);
+  }
+});
 $("#logoutBtn").addEventListener("click",async()=>{await api("/api/admin/logout",{method:"POST"});sessionStorage.removeItem("ak_csrf");csrf="";showLogin();});
 $("#syncBtn").addEventListener("click",async()=>{$("#health").textContent="Đang đồng bộ…";const {data}=await api("/api/admin/sync",{method:"POST",body:JSON.stringify({mode:"discover"})});$("#health").textContent=data.ok?"Đồng bộ xong":("Đồng bộ: "+(data.error||data.status||"lỗi"));await refresh();});
 $("#enrichBtn").addEventListener("click",async()=>{$("#health").textContent="Đang bổ sung caption…";const {data}=await api("/api/admin/sync",{method:"POST",body:JSON.stringify({mode:"enrich"})});$("#health").textContent=data.ok?("Đã bổ sung "+(data.enriched??0)+" mục"):("Enrich: "+(data.error||data.status||"lỗi"));await refresh();});
