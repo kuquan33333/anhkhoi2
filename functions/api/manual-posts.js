@@ -34,10 +34,15 @@ export async function onRequestGet({ request, env }) {
     for (let i = 0; i < 5; i++) params.push("%" + search.replace(/[%_]/g, "") + "%");
   }
   const where = conditions.join(" AND ");
+  const countRow = await env.DB.prepare(
+    "SELECT COUNT(*) AS total FROM manual_posts WHERE " + where
+  ).bind(...params).first();
+  const total = Math.max(0, Number(countRow?.total || 0));
+
   const query = "SELECT id,slug,title,title_en,excerpt,excerpt_en,language,category,tags_json,cover_r2_key,published_at,updated_at," +
     "length(body_markdown) AS content_length FROM manual_posts WHERE " + where +
     " ORDER BY COALESCE(published_at,created_at) DESC,id DESC LIMIT ? OFFSET ?";
-  const rows = await env.DB.prepare(query).bind(...params, limit + 1, offset).all();
+  const rows = await env.DB.prepare(query).bind(...params, limit, offset).all();
   const results = rows.results || [];
   const selected = results.slice(0, limit).map(({ tags_json, content_length, ...rest }) => {
     let tags = [];
@@ -52,7 +57,8 @@ export async function onRequestGet({ request, env }) {
   });
   return json({
     ok: true, enabled: true, posts: selected,
-    hasMore: results.length > limit,
+    total,
+    hasMore: offset + selected.length < total,
     nextOffset: offset + selected.length
   }, 200, { "cache-control": "public, max-age=30" });
 }
