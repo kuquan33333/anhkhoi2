@@ -4,14 +4,17 @@ import test from "node:test";
 
 const source = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 
-test("Fuwari light and dark both define explicit text colors", () => {
+test("Fuwari light and dark keep upstream root/card/text theme behavior", () => {
   const variables = source("src/styles/variables.styl");
   const css = source("src/styles/main.css");
+  const layout = source("src/layouts/Layout.astro");
   for (const token of ["--page-bg", "--card-bg", "--text-primary", "--text-75", "--text-50", "--text-30"]) {
     assert.ok(variables.includes(token + ":"), token + " must be defined");
   }
-  assert.match(css, /html, body\s*\{\s*background-color:var\(--page-bg\)/);
-  assert.match(css, /\.card-base\s*\{[\s\S]*?color: var\(--text-primary\)/);
+  assert.match(layout, /bg-\[var\(--page-bg\)\]/);
+  assert.match(css, /\.card-base\s*\{\s*@apply[^}]*bg-\[var\(--card-bg\)\]/);
+  assert.match(css, /\.text-75\s*\{\s*@apply text-black\/75 dark:text-white\/75/);
+  assert.doesNotMatch(css, /html, body\s*\{\s*background-color/);
 });
 
 test("manual post detail has a top back link and readable Markdown", () => {
