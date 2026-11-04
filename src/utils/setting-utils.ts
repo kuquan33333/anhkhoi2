@@ -38,27 +38,19 @@ export function setHue(hue: number): void {
 }
 
 export function applyThemeToDocument(theme: LIGHT_DARK_MODE) {
-	switch (theme) {
-		case LIGHT_MODE:
-			document.documentElement.classList.remove("dark");
-			break;
-		case DARK_MODE:
-			document.documentElement.classList.add("dark");
-			break;
-		case AUTO_MODE:
-			if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-				document.documentElement.classList.add("dark");
-			} else {
-				document.documentElement.classList.remove("dark");
-			}
-			break;
-	}
-
-	// Set the theme for Expressive Code
-	document.documentElement.setAttribute(
-		"data-theme",
-		expressiveCodeConfig.theme,
+	const root = document.documentElement;
+	const isDark = theme === DARK_MODE ||
+		(theme === AUTO_MODE && window.matchMedia("(prefers-color-scheme: dark)").matches);
+	root.classList.toggle("dark", isDark);
+	root.dataset.appliedTheme = isDark ? DARK_MODE : LIGHT_MODE;
+	root.style.colorScheme = isDark ? DARK_MODE : LIGHT_MODE;
+	// Keep mobile browser chrome consistent with the visible Fuwari surface.
+	document.querySelector('meta[name="theme-color"]')?.setAttribute(
+		"content",
+		isDark ? "#11151d" : "#ebedf5",
 	);
+	// Expressive Code keeps its own supported syntax-highlighting theme.
+	root.setAttribute("data-theme", expressiveCodeConfig.theme);
 }
 
 export function setTheme(theme: LIGHT_DARK_MODE): void {
@@ -67,5 +59,7 @@ export function setTheme(theme: LIGHT_DARK_MODE): void {
 }
 
 export function getStoredTheme(): LIGHT_DARK_MODE {
-	return (localStorage.getItem("theme") as LIGHT_DARK_MODE) || DEFAULT_THEME;
+	const value = localStorage.getItem("theme");
+	return value === LIGHT_MODE || value === DARK_MODE || value === AUTO_MODE
+		? value : DEFAULT_THEME;
 }
