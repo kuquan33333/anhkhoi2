@@ -26,210 +26,40 @@ const isAll = mode === "all";
   <p class="ak-runtime-notice hidden" data-runtime-notice role="status"></p>
 </section>
 
-<script>
-function akNode(tag, className, text) {
-  const el = document.createElement(tag);
-  if (className) el.className = className;
-  if (text !== undefined && text !== null) el.textContent = String(text);
-  return el;
-}
-function akFacebookUrl(raw) {
-  try {
-    const u = new URL(raw);
-    return u.protocol === "https:" && (u.hostname === "facebook.com" || u.hostname.endsWith(".facebook.com"));
-  } catch { return false; }
-}
-function akImageUrl(key, fallback) {
-  if (key && /^(?:facebook|admin)\/[A-Za-z0-9/_\-.]+$/.test(key))
-    return "/api/media?key=" + encodeURIComponent(key);
-  try {
-    const u = new URL(fallback);
-    if (u.protocol === "https:") return u.toString();
-  } catch {}
-  return "/assets/anhkhoi-cover.webp";
-}
-function akAspect(item) {
-  const w = Number(item.mediaWidth);
-  const h = Number(item.mediaHeight);
-  if (w > 0 && h > 0 && w / h >= 0.3 && w / h <= 3.5) return w + " / " + h;
-  return item.item_type === "reel" ? "9 / 16" : "16 / 9";
-}
-function akDate(value) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.valueOf())) return "";
-  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium" }).format(d);
-}
-function akPlayer(card, item, button) {
-  const existing = card.querySelector("[data-ak-embed]");
-  if (existing) {
-    existing.remove();
-    button.textContent = item.item_type === "reel" || item.item_type === "video" ? "▶ Phát video tại đây" : "Xem bài tại đây";
-    button.setAttribute("aria-expanded", "false");
-    return;
-  }
-  if (!akFacebookUrl(item.permalink)) return;
-  const isVideo = item.item_type === "reel" || item.item_type === "video";
-  const container = akNode("div", "ak-runtime-embed");
-  container.dataset.akEmbed = "1";
-  if (isVideo) container.style.aspectRatio = akAspect(item);
-  else container.classList.add("ak-runtime-embed-post");
 
-  const plugin = new URL("https://www.facebook.com/plugins/" + (isVideo ? "video.php" : "post.php"));
-  plugin.searchParams.set("href", item.permalink);
-  plugin.searchParams.set("show_text", "true");
-  plugin.searchParams.set("width", String(Math.min(680, Math.max(300, Math.floor(card.getBoundingClientRect().width - 32)))));
-  const iframe = document.createElement("iframe");
-  iframe.title = (isVideo ? "Trình phát video Facebook" : "Bài đăng Facebook") + " - Anh Khôi";
-  iframe.src = plugin.toString();
-  iframe.loading = "eager";
-  iframe.allow = "encrypted-media; clipboard-write; fullscreen; picture-in-picture";
-  iframe.setAttribute("allowfullscreen", "");
-  container.appendChild(iframe);
-
-  const hint = akNode("p", "ak-runtime-embed-hint", "Nếu Facebook không cho phát hoặc hiện nội dung, hãy dùng liên kết bài gốc bên dưới.");
-  const anchor = akNode("a", "ak-runtime-link", "Mở bài gốc trên Facebook ↗");
-  anchor.href = item.permalink;
-  anchor.target = "_blank";
-  anchor.rel = "noopener noreferrer";
-  const region = akNode("div", "ak-runtime-embed-region");
-  region.append(container, hint, anchor);
-  region.dataset.akEmbed = "1";
-  card.appendChild(region);
-  button.textContent = "Đóng trình xem";
-  button.setAttribute("aria-expanded", "true");
-  region.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-function akCard(item) {
-  const card = akNode("article", "ak-runtime-card");
-  const gallery = akNode("div", "ak-runtime-gallery");
-  const media = Array.isArray(item.media) ? item.media.filter(m => m && m.type === "image") : [];
-  const sources = media.length
-    ? media.map(m => ({ key: m.r2_key, url: m.source_url }))
-    : [{ key: item.r2_thumbnail_key, url: item.thumbnail_url }];
-  for (const source of sources.slice(0, 20)) {
-    const figure = akNode("figure", "ak-runtime-poster");
-    const img = document.createElement("img");
-    img.src = akImageUrl(source.key, source.url);
-    img.alt = item.caption ? String(item.caption).slice(0, 140) : "Ảnh hoặc ảnh đại diện video Facebook";
-    img.loading = "lazy";
-    img.decoding = "async";
-    img.addEventListener("error", () => {
-      if (!img.src.endsWith("/assets/anhkhoi-cover.webp")) img.src = "/assets/anhkhoi-cover.webp";
-    });
-    figure.appendChild(img);
-    gallery.appendChild(figure);
-  }
-  card.appendChild(gallery);
-
-  const body = akNode("div", "ak-runtime-body");
-  const labels = [String(item.item_type || "post").toUpperCase()];
-  if (item.viewLabel) labels.push(item.viewLabel + " lượt xem");
-  const date = akDate(item.published_at);
-  if (date) labels.push(date);
-  body.appendChild(akNode("div", "ak-runtime-meta", labels.join(" · ")));
-  const caption = akNode("p", "ak-runtime-caption",
-    item.caption || "Facebook chưa cung cấp caption công khai cho nội dung này.");
-  body.appendChild(caption);
-
-  if (akFacebookUrl(item.permalink)) {
-    const actions = akNode("div", "ak-runtime-actions");
-    const isVideo = item.item_type === "reel" || item.item_type === "video";
-    const play = akNode("button", "ak-cta", isVideo ? "▶ Phát video tại đây" : "Xem bài tại đây");
-    play.type = "button";
-    play.setAttribute("aria-expanded", "false");
-    play.addEventListener("click", () => akPlayer(card, item, play));
-    actions.appendChild(play);
-    const link = akNode("a", "ak-runtime-link", "Facebook ↗");
-    link.href = item.permalink;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    actions.appendChild(link);
-    body.appendChild(actions);
-  }
-  card.appendChild(body);
-  return card;
-}
-function akStartFeed(section) {
-  if (section.dataset.loaded === "1") return;
-  section.dataset.loaded = "1";
-  const mode = section.dataset.mode || "home";
-  const endpoint = mode === "reels" ? "/api/reels" : "/api/feed";
-  const pageSize = mode === "home" ? 6 : 24;
-  const grid = section.querySelector("[data-runtime-grid]");
-  const more = section.querySelector("[data-runtime-more]");
-  const notice = section.querySelector("[data-runtime-notice]");
-  let offset = 0;
-  let loading = false;
-
-  async function loadMore() {
-    if (loading || !grid) return;
-    loading = true;
-    if (more) { more.disabled = true; more.textContent = "Đang tải…"; }
-    try {
-      const res = await fetch(endpoint + "?limit=" + pageSize + "&offset=" + offset, {
-        headers: { accept: "application/json" }
-      });
-      if (!res.ok) throw new Error("failed_to_fetch_feed");
-      const data = await res.json();
-      if (!data.enabled) {
-        if (notice) { notice.textContent = "Nguồn Facebook hiện chưa được bật hiển thị."; notice.classList.remove("hidden"); }
-        section.classList.remove("hidden");
-        if (more) more.hidden = true;
-        return;
-      }
-      const items = Array.isArray(data.items) ? data.items : [];
-      for (const item of items) grid.appendChild(akCard(item));
-      offset = Number(data.nextOffset) || offset + items.length;
-      if (!offset && notice) {
-        notice.textContent = "Chưa tìm thấy bài đăng Facebook công khai để hiển thị.";
-        notice.classList.remove("hidden");
-      }
-      section.classList.remove("hidden");
-      if (more) more.hidden = !data.hasMore;
-    } catch {
-      if (notice) {
-        notice.textContent = "Không tải được nội dung lúc này. Bạn có thể thử lại.";
-        notice.classList.remove("hidden");
-      }
-      section.classList.remove("hidden");
-      if (more) more.hidden = false;
-    } finally {
-      loading = false;
-      if (more) { more.disabled = false; more.textContent = "Xem thêm bài đăng"; }
-    }
-  }
-  more?.addEventListener("click", loadMore);
-  loadMore();
-}
-function akBootFeeds() {
-  document.querySelectorAll("[data-ak-runtime-feed]").forEach(akStartFeed);
-}
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", akBootFeeds);
-else akBootFeeds();
-document.addEventListener("astro:page-load", akBootFeeds);
-</script>
 
 <style is:global>
-.ak-runtime-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-.ak-runtime-card{overflow:hidden;border:1px solid var(--line-color);border-radius:1rem;background:var(--card-bg);min-width:0}
-.ak-runtime-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.35rem;background:#0b1830}
-.ak-runtime-poster{display:flex;justify-content:center;align-items:center;margin:0;min-height:150px;max-height:600px;overflow:hidden}
-.ak-runtime-poster img{display:block;width:100%;height:auto;max-height:600px;object-fit:contain}
-.ak-runtime-body{padding:1rem}
-.ak-runtime-meta{font-size:.72rem;font-weight:800;color:var(--primary);letter-spacing:.06em}
-.ak-runtime-caption{margin-top:.6rem;line-height:1.7;font-size:.94rem;white-space:pre-wrap;overflow-wrap:anywhere}
-.ak-runtime-actions{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:1rem}
-.ak-runtime-link{font-size:.85rem;font-weight:750;color:var(--primary);text-decoration:underline}
-.ak-runtime-embed-region{padding:0 1rem 1rem}
-.ak-runtime-embed{width:min(100%,680px);margin:auto;background:#050a13;overflow:hidden;border-radius:.75rem}
-.ak-runtime-embed iframe{width:100%;height:100%;border:0;display:block}
-.ak-runtime-embed-post{aspect-ratio:auto;height:650px;max-height:80vh}
-.ak-runtime-embed-hint{font-size:.77rem;color:var(--text-75);margin:.6rem 0}
+.ak-runtime-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem}
+.ak-runtime-card{background:var(--card-bg);color:var(--text-primary);border:1px solid var(--line-color);border-radius:1rem;overflow:hidden;min-width:0;align-self:start}
+.ak-runtime-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.4rem;background:var(--btn-regular-bg)}
+.ak-runtime-poster{display:flex;justify-content:center;align-items:center;min-height:150px;max-height:600px;margin:0}
+.ak-runtime-poster img{width:100%;height:auto;max-height:600px;object-fit:contain;display:block}
+.ak-runtime-video-stage{display:flex;align-items:center;justify-content:center;background:#0a1428}
+.ak-runtime-player-shell{position:relative;display:block;width:100%;max-width:100%;overflow:hidden;background:#0a1428}
+.ak-runtime-player-shell.is-reel{width:min(100%,380px)}
+.ak-runtime-video-poster{position:absolute;inset:0;background:#0a1428}
+.ak-runtime-video-poster img{display:block;width:100%;height:100%;object-fit:contain}
+.ak-runtime-overlay-play{position:absolute;inset:0;width:100%;height:100%;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;cursor:pointer;background:linear-gradient(180deg,transparent 38%,rgba(0,0,0,.24));color:#fff}
+.ak-runtime-overlay-play:hover{background:rgba(0,0,0,.15)}
+.ak-runtime-overlay-play:focus-visible{outline:4px solid #fff;outline-offset:-6px}
+.ak-runtime-play-icon{display:grid;place-items:center;width:4.8rem;height:4.8rem;min-height:4.8rem;border-radius:50%;font-size:2.1rem;line-height:1;color:#fff;background:rgba(14,54,100,.84);border:2px solid rgba(255,255,255,.9);text-indent:.22rem;box-shadow:0 4px 25px #0008;transition:transform .2s}
+.ak-runtime-overlay-play:hover .ak-runtime-play-icon{transform:scale(1.08)}
+.ak-runtime-play-caption{background:#07101fcc;color:#fff;border-radius:99px;padding:.38rem .85rem;font-size:.84rem;font-weight:750}
+.ak-runtime-video-iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#0a1428}
+.ak-runtime-player-close{position:absolute;z-index:2;right:.65rem;top:.65rem;border-radius:99px;border:1px solid #ffffff90;padding:.34rem .75rem;color:#fff;background:#07101fcc;font-size:.78rem;font-weight:750;cursor:pointer}
+.ak-runtime-player-close:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.ak-runtime-body{padding:1.1rem}
+.ak-runtime-meta{font-size:.76rem;font-weight:800;color:var(--primary);letter-spacing:.03em}
+.ak-runtime-caption{color:var(--text-primary);margin-top:.75rem;line-height:1.75;font-size:.94rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.ak-runtime-actions{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-top:1rem}
+.ak-runtime-link{font-size:.84rem;font-weight:750;color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+.ak-runtime-post-embed{padding:.5rem 1rem 1rem}
+.ak-runtime-post-embed iframe{width:100%;height:600px;max-height:70vh;border:0}
 .ak-runtime-more-wrap{display:flex;justify-content:center;margin-top:1.2rem}
 .ak-runtime-more{border:1px solid var(--primary);border-radius:99px;padding:.65rem 1.5rem;font-weight:800;color:var(--primary)}
 .ak-runtime-more[hidden]{display:none}
 .ak-runtime-more:disabled{opacity:.6}
 .ak-runtime-notice{font-size:.9rem;padding:1rem;color:var(--text-75)}
-@media(max-width:760px){.ak-runtime-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.ak-runtime-grid{grid-template-columns:1fr}.ak-runtime-player-shell.is-reel{width:min(100%,370px)}}
+@media(prefers-reduced-motion:reduce){.ak-runtime-play-icon,.ak-runtime-overlay-play{transition:none}}
 </style>
