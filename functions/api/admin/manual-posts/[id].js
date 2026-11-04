@@ -3,16 +3,23 @@ import { json, readJson } from "../../../_utils.js";
 
 const slugify = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 100);
-
+function pubDate(input, fallback) {
+  const text = String(input || "").trim();
+  if (!text) return fallback;
+  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)?$/.test(text)) return fallback;
+  const d = new Date(text);
+  return Number.isFinite(d.valueOf()) ? d.toISOString() : fallback;
+}
 export async function onRequestGet({ request, env, params }) {
   const auth = await requireAdmin(request, env);
   if (!auth.ok) return auth.response;
   const row = await env.DB.prepare(
-    "SELECT id,slug,title,excerpt,body_markdown,language,category,tags_json,cover_r2_key,status,published_at,created_at,updated_at FROM manual_posts WHERE id=? LIMIT 1"
+    "SELECT id,slug,title,title_en,excerpt,excerpt_en,body_markdown,body_markdown_en," +
+    "language,category,tags_json,cover_r2_key,status,published_at,created_at,updated_at " +
+    "FROM manual_posts WHERE id=? LIMIT 1"
   ).bind(params.id).first();
   if (!row) return json({ ok:false, error:"not_found" }, 404);
-  let tags = [];
-  try { tags = JSON.parse(row.tags_json || "[]"); } catch {}
+  let tags = []; try { tags = JSON.parse(row.tags_json || "[]"); } catch {}
   const { tags_json, ...safe } = row;
   return json({ ok:true, post:{ ...safe, tags } });
 }
@@ -27,19 +34,24 @@ export async function onRequestPatch({ request, env, params }) {
   const slug = slugify(body?.slug ?? current.slug ?? title);
   if (!title || !slug) return json({ ok:false, error:"title_required" }, 400);
   const status = body?.status === "published" ? "published" : "draft";
-  const publishedAt = status === "published" ? (current.published_at || new Date().toISOString()) : null;
+  const publishedAt = pubDate(body?.publishedAt,
+    current.published_at || (status === "published" ? new Date().toISOString() : null));
   const language = body?.language === "en" ? "en" : "vi";
   let oldTags = []; try { oldTags = JSON.parse(current.tags_json || "[]"); } catch {}
-  const tags = Array.isArray(body?.tags) ? body.tags.map(x=>String(x).trim()).filter(Boolean).slice(0,20) : oldTags;
+  const tags = Array.isArray(body?.tags) ?
+    body.tags.map(x => String(x).trim()).filter(Boolean).slice(0,20) : oldTags;
   const cover = typeof body?.coverR2Key === "string" && /^admin\/[A-Za-z0-9/_\-.]+$/.test(body.coverR2Key)
-    ? body.coverR2Key
-    : null;
+    ? body.coverR2Key : null;
   try {
     await env.DB.prepare(
-      "UPDATE manual_posts SET slug=?,title=?,excerpt=?,body_markdown=?,language=?,category=?,tags_json=?,cover_r2_key=?,status=?,published_at=?,updated_at=datetime('now') WHERE id=?"
-    ).bind(
-      slug,title,String(body?.excerpt ?? current.excerpt ?? ""),String(body?.bodyMarkdown ?? current.body_markdown ?? ""),
-      language,body?.category ? String(body.category).slice(0,80) : null,JSON.stringify(tags),
+      "UPDATE manual_posts SET slug=?,title=?,title_en=?,excerpt=?,excerpt_en=?,body_markdown=?,body_markdown_en=?," +
+      "language=?,category=?,tags_json=?,cover_r2_key=?,status=?,published_at=?,updated_at=datetime('now') WHERE id=?"
+    ).bind(slug,title,String(body?.titleEn ?? current.title_en ?? "").slice(0,300),
+      String(body?.excerpt ?? current.excerpt ?? "").slice(0,1000),
+      String(body?.excerptEn ?? current.excerpt_en ?? "").slice(0,1000),
+      String(body?.bodyMarkdown ?? current.body_markdown ?? ""),
+      String(body?.bodyMarkdownEn ?? current.body_markdown_en ?? ""),language,
+      body?.category ? String(body.category).slice(0,80) : null,JSON.stringify(tags),
       cover,status,publishedAt,params.id
     ).run();
     return json({ ok:true,id:Number(params.id),slug,status,publishedAt });
