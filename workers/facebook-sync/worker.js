@@ -652,9 +652,17 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
     ? "" : sourceCaption.slice(0, 20000);
   const thumbnailUrl = details?.image || candidate.thumbnailUrl || null;
 
+  const originalSourceKey = candidate.permalink || null;
+  const originalFacebookId = candidate.facebookId || null;
   const existing = await env.DB.prepare(
-    "SELECT id,status,r2_thumbnail_key,raw_json FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
-  ).bind(sourceKey, facebookId, facebookId).first();
+    "SELECT id,status,r2_thumbnail_key,raw_json FROM facebook_items " +
+    "WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) " +
+    "OR (? IS NOT NULL AND source_key=?) OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
+  ).bind(
+    sourceKey, facebookId, facebookId,
+    originalSourceKey, originalSourceKey,
+    originalFacebookId, originalFacebookId
+  ).first();
 
   let r2Key = existing?.r2_thumbnail_key || null;
   if (thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
