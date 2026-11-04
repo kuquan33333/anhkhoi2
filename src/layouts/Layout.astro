@@ -76,7 +76,7 @@ const bannerOffset =
 ---
 
 <!DOCTYPE html>
-<html lang={siteLang} data-ak-locale="vi" class="bg-[var(--page-bg)] text-[var(--text-primary)] transition text-[14px] md:text-[16px]"
+<html lang={siteLang} data-ak-locale="vi" class="bg-[var(--page-bg)] transition text-[14px] md:text-[16px]"
 	  data-overlayscrollbars-initialize
 >
 	<head>
@@ -134,7 +134,13 @@ const bannerOffset =
 					}
 			}
 
-			// Load the hue from local storage
+			// Restore Fuwari's upstream default hue after the old Anh Khoi build used 224.
+			// Only migrate that previous default; preserve any other hue the visitor selected.
+			const THEME_PARITY_KEY = 'ak-fuwari-theme-parity-v1';
+			if (!localStorage.getItem(THEME_PARITY_KEY) && localStorage.getItem('hue') === '224') {
+				localStorage.setItem('hue', String(configHue));
+				localStorage.setItem(THEME_PARITY_KEY, '1');
+			}
 			const hue = localStorage.getItem('hue') || configHue;
 			document.documentElement.style.setProperty('--hue', hue);
 

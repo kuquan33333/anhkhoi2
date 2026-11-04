@@ -23,17 +23,18 @@ define(vars)
         {key}: value[1]
 
 define({
-  --primary: oklch(0.51 0.14 var(--hue)) oklch(0.77 0.12 var(--hue))
+  --primary: oklch(0.70 0.14 var(--hue)) oklch(0.75 0.14 var(--hue))
   --page-bg: oklch(0.95 0.01 var(--hue)) oklch(0.16 0.014 var(--hue))
   --card-bg: white oklch(0.23 0.015 var(--hue))
 
-  /* Accessible reading colors shared by Fuwari and runtime D1 content. */
-  --text-primary: oklch(0.23 0.02 var(--hue)) oklch(0.96 0.01 var(--hue))
-  --text-75: oklch(0.38 0.02 var(--hue)) oklch(0.83 0.015 var(--hue))
-  --text-50: oklch(0.43 0.02 var(--hue)) oklch(0.78 0.015 var(--hue))
-  --text-30: oklch(0.47 0.01 var(--hue)) oklch(0.75 0.01 var(--hue))
+  /* Custom runtime components use the same opacity values as Fuwari's
+     black/white opacity utility classes. */
+  --text-primary: rgba(0, 0, 0, 0.90) rgba(255, 255, 255, 0.90)
+  --text-75: rgba(0, 0, 0, 0.75) rgba(255, 255, 255, 0.75)
+  --text-50: rgba(0, 0, 0, 0.50) rgba(255, 255, 255, 0.50)
+  --text-30: rgba(0, 0, 0, 0.30) rgba(255, 255, 255, 0.30)
 
-  --btn-content: oklch(0.45 0.12 var(--hue)) oklch(0.80 0.10 var(--hue))
+  --btn-content: oklch(0.55 0.12 var(--hue)) oklch(0.75 0.1 var(--hue))
 
   --btn-regular-bg: oklch(0.95 0.025 var(--hue)) oklch(0.33 0.035 var(--hue))
   --btn-regular-bg-hover: oklch(0.9 0.05 var(--hue)) oklch(0.38 0.04 var(--hue))

@@ -39,13 +39,15 @@ test("Caption decoder never inserts untrusted HTML", () => {
   assert.equal(decodeForPage("&lt;script&gt;alert(1)&lt;/script&gt;"), "<script>alert(1)</script>");
 });
 
-test("The original light Fuwari background wins on html and body", () => {
+test("The public Fuwari theme is not overridden by Admin's dark background", () => {
   const variables = read("src/styles/variables.styl");
   const css = read("src/styles/main.css");
+  const admin = read("src/pages/admin.astro");
   assert.match(variables, /--page-bg:\s*oklch\(0\.95/);
-  assert.match(css, /html:not\(\.dark\), html:not\(\.dark\) body/);
-  assert.match(css, /background-color: var\(--page-bg\) !important/);
-  assert.match(css, /html\.dark, html\.dark body/);
+  assert.doesNotMatch(css, /background-color:\s*var\(--page-bg\)\s*!important/);
+  assert.doesNotMatch(css, /html:not\(\.dark\)/);
+  assert.match(admin, /<style is:inline>/);
+  assert.match(admin, /body\.ak-admin-page\{[^}]*radial-gradient/);
 });
 
 test("The article Back button navigates without Swup interception", () => {

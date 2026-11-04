@@ -10,7 +10,7 @@ export const siteConfig: SiteConfig = {
 	title: "Anh Khôi AI Media",
 	subtitle: "Video AI, tin nổi bật và công nghệ",
 	lang: "vi",
-	themeColor: { hue: 224, fixed: false },
+	themeColor: { hue: 250, fixed: false },
 	banner: {
 		enable: true,
 		src: "/assets/anhkhoi-cover.webp",

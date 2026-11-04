@@ -3,7 +3,6 @@
 @layer components {
     .card-base {
         @apply rounded-[var(--radius-large)] overflow-hidden bg-[var(--card-bg)] transition;
-        color: var(--text-primary);
     }
     h1, h2, h3, h4, h5, h6, p, a, span, li, ul, ol, blockquote, code, pre, table, th, td, strong {
         @apply transition;
@@ -78,10 +77,21 @@
         display: none;
     }
 
-    .text-90 { color: var(--text-primary); }
-    .text-75 { color: var(--text-75); }
-    .text-50 { color: var(--text-50); }
-    .text-30, .text-25 { color: var(--text-30); }
+    .text-90 {
+        @apply text-black/90 dark:text-white/90
+    }
+    .text-75 {
+        @apply text-black/75 dark:text-white/75
+    }
+    .text-50 {
+        @apply text-black/50 dark:text-white/50
+    }
+    .text-30 {
+        @apply text-black/30 dark:text-white/30
+    }
+    .text-25 {
+        @apply text-black/25 dark:text-white/25
+    }
 
     .meta-icon {
         @apply w-8 h-8 transition rounded-md flex items-center justify-center bg-[var(--btn-regular-bg)]
@@ -143,21 +153,6 @@
 
 /* Anh Khoi: Vietnamese-first accessibility and bilingual controls. */
 :root { font-synthesis:none; }
-/* html and body must always use the SAME Fuwari theme surface. */
-:root { color-scheme:light; background-color:var(--page-bg); color:var(--text-primary); }
-:root.dark { color-scheme:dark; }
-html, body { background-color:var(--page-bg); color:var(--text-primary); }
-/* Fuwari's light/dark palette must control the entire viewport.
-   Some runtime/third-party style overrides were leaving the root at #07101f
-   while the cards and theme selector were in light mode. */
-html:not(.dark), html:not(.dark) body {
-    background-color: var(--page-bg) !important;
-    color-scheme: light;
-}
-html.dark, html.dark body {
-    background-color: var(--page-bg) !important;
-    color-scheme: dark;
-}
 body { font-family: Roboto,"Segoe UI",system-ui,sans-serif; text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased; }
 .ak-lang-switch{display:inline-flex;align-items:center;gap:4px;margin-right:9px;background:var(--btn-regular-bg);border:1px solid var(--line-color);border-radius:11px;padding:5px 7px;white-space:nowrap}
 .ak-lang-switch button{border:0;background:transparent;border-radius:7px;cursor:pointer;font-weight:800;font-size:12px;min-width:25px;padding:5px 3px;color:var(--text-50);transition:background .2s,color .2s}
