@@ -18,6 +18,24 @@ function isSafeBackTarget(candidate: string): boolean {
   } catch { return false; }
 }
 
+/** Bypass Swup for article back links. Native navigation works even when
+ * the archive was loaded from Swup's cache or the user entered by a direct URL.
+ * Keep the real href so keyboard, long-press and opening a new tab still work.
+ */
+document.addEventListener("click", event => {
+  if (!(event.target instanceof Element)) return;
+  const back = event.target.closest<HTMLAnchorElement>(
+    "#ak-live-back, .ak-article-footer a[data-no-swup]"
+  );
+  if (!back || event.button !== 0 || event.ctrlKey || event.metaKey ||
+      event.shiftKey || event.altKey) return;
+  const target = back.href;
+  if (!isSafeBackTarget(target)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  window.location.assign(target);
+}, true);
+
 /** Remember the in-site page where the reader clicked on a manual post. */
 document.addEventListener("click", event => {
   const target = event.target;
