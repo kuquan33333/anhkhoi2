@@ -1,6 +1,23 @@
 import { requireAdmin } from "../../../_auth.js";
 import { json, readJson } from "../../../_utils.js";
 
+const CATEGORY_OPTIONS = new Set([
+  "AI & Công nghệ",
+  "Apple & Thiết bị",
+  "Video & Sáng tạo",
+  "Hạ tầng & Phần cứng",
+  "Robot & Tự động hóa",
+]);
+const normalizeCategory = value => {
+  const name = String(value || "").trim();
+  return CATEGORY_OPTIONS.has(name) ? name : null;
+};
+const normalizeTags = value => [...new Set(
+  (Array.isArray(value) ? value : [])
+    .map(x => String(x).trim())
+    .filter(Boolean)
+)].slice(0, 3);
+
 const slugify = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 100);
 function pubDate(input, fallback) {
@@ -38,8 +55,7 @@ export async function onRequestPatch({ request, env, params }) {
     current.published_at || (status === "published" ? new Date().toISOString() : null));
   const language = body?.language === "en" ? "en" : body?.language === "vi" ? "vi" : current.language;
   let oldTags = []; try { oldTags = JSON.parse(current.tags_json || "[]"); } catch {}
-  const tags = Array.isArray(body?.tags) ?
-    body.tags.map(x => String(x).trim()).filter(Boolean).slice(0,20) : oldTags;
+  const tags = Array.isArray(body?.tags) ? normalizeTags(body.tags) : oldTags.slice(0, 3);
   const cover = typeof body?.coverR2Key !== "string" ? current.cover_r2_key :
     /^admin\/[A-Za-z0-9/_\-.]+$/.test(body.coverR2Key) ? body.coverR2Key : null;
   try {
@@ -51,7 +67,7 @@ export async function onRequestPatch({ request, env, params }) {
       String(body?.excerptEn ?? current.excerpt_en ?? "").slice(0,1000),
       String(body?.bodyMarkdown ?? current.body_markdown ?? ""),
       String(body?.bodyMarkdownEn ?? current.body_markdown_en ?? ""),language,
-      body?.category === undefined ? current.category : body.category ? String(body.category).slice(0,80) : null,JSON.stringify(tags),
+      body?.category === undefined ? current.category : normalizeCategory(body.category),JSON.stringify(tags),
       cover,status,publishedAt,params.id
     ).run();
     return json({ ok:true,id:Number(params.id),slug,status,publishedAt });

@@ -23,10 +23,33 @@ export async function onRequestGet({ env }) {
       tagCounts.set(name, (tagCounts.get(name) || 0) + 1);
     }
   }
+  const CATEGORY_ORDER = [
+    "AI & Công nghệ",
+    "Apple & Thiết bị",
+    "Video & Sáng tạo",
+    "Hạ tầng & Phần cứng",
+    "Robot & Tự động hóa",
+  ];
   const alphabetic = (a, b) => a.name.localeCompare(b.name, "vi");
+  const categoryRank = (a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a.name);
+    const bi = CATEGORY_ORDER.indexOf(b.name);
+    if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    return alphabetic(a, b);
+  };
+  const popularity = (a, b) => b.count - a.count || alphabetic(a, b);
+  const categories = [...categoryCounts]
+    .map(([name, count]) => ({ name, count }))
+    .sort(categoryRank);
+  const tags = [...tagCounts]
+    .map(([name, count]) => ({ name, count }))
+    .filter(item => item.count >= 2)
+    .sort(popularity)
+    .slice(0, 8);
+
   return json({
     ok: true,
-    categories: [...categoryCounts].map(([name, count]) => ({ name, count })).sort(alphabetic),
-    tags: [...tagCounts].map(([name, count]) => ({ name, count })).sort(alphabetic),
+    categories,
+    tags,
   }, 200, { "cache-control": "public, max-age=30" });
 }
