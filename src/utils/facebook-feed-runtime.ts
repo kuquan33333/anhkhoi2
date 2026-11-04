@@ -11,7 +11,7 @@ function akDecodeFacebookCaption(input?: string | null): string {
   let text = String(input || "");
   for (let pass = 0; pass < 3; pass++) {
     const next = text
-      .replace(/&amp;(?=#(?:x[0-9a-f]{1,6}|[0-9]{1,7});)/gi, "&")
+      .replace(/&amp;/gi, "&")
       .replace(/&#(?:x([0-9a-f]{1,6})|([0-9]{1,7}));/gi, (match, hex: string | undefined, dec: string | undefined) => {
         const code = Number.parseInt(hex || dec || "", hex ? 16 : 10);
         return code > 0 && code <= 0x10FFFF && !(code >= 0xD800 && code <= 0xDFFF)
