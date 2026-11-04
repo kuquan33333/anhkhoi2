@@ -147,6 +147,17 @@
 :root { color-scheme:light; background-color:var(--page-bg); color:var(--text-primary); }
 :root.dark { color-scheme:dark; }
 html, body { background-color:var(--page-bg); color:var(--text-primary); }
+/* Fuwari's light/dark palette must control the entire viewport.
+   Some runtime/third-party style overrides were leaving the root at #07101f
+   while the cards and theme selector were in light mode. */
+html:not(.dark), html:not(.dark) body {
+    background-color: var(--page-bg) !important;
+    color-scheme: light;
+}
+html.dark, html.dark body {
+    background-color: var(--page-bg) !important;
+    color-scheme: dark;
+}
 body { font-family: Roboto,"Segoe UI",system-ui,sans-serif; text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased; }
 .ak-lang-switch{display:inline-flex;align-items:center;gap:4px;margin-right:9px;background:var(--btn-regular-bg);border:1px solid var(--line-color);border-radius:11px;padding:5px 7px;white-space:nowrap}
 .ak-lang-switch button{border:0;background:transparent;border-radius:7px;cursor:pointer;font-weight:800;font-size:12px;min-width:25px;padding:5px 3px;color:var(--text-50);transition:background .2s,color .2s}

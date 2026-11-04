@@ -48,7 +48,7 @@ const jsonLd = {
 <MainGridLayout banner={entry.data.image} title={entry.data.title} description={entry.data.description} lang={entry.data.lang} setOGTypeArticle={true} headings={headings}>
     <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)}></script>
     <nav aria-label="Quay lại danh sách bài viết" class="mb-4">
-      <a href="/archive/" class="inline-flex items-center gap-2 rounded-xl px-4 py-3 font-bold text-sm transition bg-[var(--btn-regular-bg)] text-[var(--primary)] hover:bg-[var(--btn-regular-bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+      <a href="/archive/" data-no-swup class="inline-flex items-center gap-2 rounded-xl px-4 py-3 font-bold text-sm transition bg-[var(--btn-regular-bg)] text-[var(--primary)] hover:bg-[var(--btn-regular-bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
         <Icon name="material-symbols:arrow-back-rounded" class="text-lg" /> Quay lại danh sách bài viết
       </a>
     </nav>

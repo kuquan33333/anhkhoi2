@@ -4,7 +4,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 <MainGridLayout title="Bài viết · Anh Khôi AI Media" description="Bài viết do Anh Khôi đăng trực tiếp từ trang quản trị.">
   <article id="ak-live-article" class="card-base relative px-6 md:px-9 pt-6 pb-9 mb-4" aria-label="Nội dung bài viết">
     <nav aria-label="Quay lại danh sách" class="mb-6">
-      <a href="/archive/" id="ak-live-back" class="ak-article-back inline-flex items-center gap-2 rounded-xl px-3 py-2 font-bold text-sm">
+      <a href="/archive/" data-no-swup id="ak-live-back" class="ak-article-back inline-flex items-center gap-2 rounded-xl px-3 py-2 font-bold text-sm">
         <span aria-hidden="true">←</span> Quay lại danh sách bài viết
       </a>
     </nav>
@@ -24,7 +24,7 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
       <div id="ak-live-body" class="prose dark:prose-invert prose-base !max-w-none custom-md ak-live-body mt-8" data-pagefind-body></div>
       <div id="ak-live-tags" class="flex flex-wrap gap-2 mt-8"></div>
       <div class="ak-article-footer mt-9 pt-6">
-        <a href="/archive/" class="ak-article-back font-bold rounded-xl px-4 py-2 inline-flex items-center gap-2">← Xem các bài viết khác</a>
+        <a href="/archive/" data-no-swup class="ak-article-back font-bold rounded-xl px-4 py-2 inline-flex items-center gap-2">← Xem các bài viết khác</a>
       </div>
     </div>
   </article>
