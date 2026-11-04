@@ -657,11 +657,13 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   const existing = await env.DB.prepare(
     "SELECT id,status,r2_thumbnail_key,raw_json FROM facebook_items " +
     "WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) " +
-    "OR (? IS NOT NULL AND source_key=?) OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
+    "OR (? IS NOT NULL AND source_key=?) OR (? IS NOT NULL AND facebook_id=?) " +
+    "ORDER BY CASE WHEN source_key=? OR (? IS NOT NULL AND facebook_id=?) THEN 0 ELSE 1 END,id LIMIT 1"
   ).bind(
     sourceKey, facebookId, facebookId,
     originalSourceKey, originalSourceKey,
-    originalFacebookId, originalFacebookId
+    originalFacebookId, originalFacebookId,
+    sourceKey, facebookId, facebookId
   ).first();
 
   let r2Key = existing?.r2_thumbnail_key || null;
@@ -686,7 +688,7 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   if (existing) {
     await env.DB.prepare(
       "UPDATE facebook_items SET " +
-      "facebook_id=COALESCE(facebook_id,?), " +
+      "source_key=?,facebook_id=?,fingerprint=?, " +
       "item_type=?, " +
       "caption=CASE WHEN ?<>'' THEN ? ELSE caption END, " +
       "permalink=?, " +
@@ -700,11 +702,32 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
       "raw_json=? " +
       "WHERE id=?"
     ).bind(
-      facebookId, resolvedType, caption, caption, permalink, details?.publishedAt || null,
+      sourceKey, facebookId, fingerprint,
+      resolvedType, caption, caption, permalink, details?.publishedAt || null,
       thumbnailUrl, r2Key, permalink || null, detectedEmbedStatus,
       status, status, rawJson, existing.id
     ).run();
     await savePublicImages(env, existing.id, resolvedType, details);
+
+    // If an alternate photo URL was a temporary placeholder for the same story,
+    // merge any cached media into the canonical row and remove only that duplicate.
+    if (originalSourceKey && originalSourceKey !== sourceKey) {
+      const duplicates = await env.DB.prepare(
+        "SELECT id FROM facebook_items WHERE id<>? AND " +
+        "((source_key=? ) OR (? IS NOT NULL AND facebook_id=?))"
+      ).bind(existing.id, originalSourceKey, originalFacebookId, originalFacebookId).all();
+      for (const duplicate of duplicates.results || []) {
+        await env.DB.prepare(
+          "UPDATE OR IGNORE facebook_media SET item_id=? WHERE item_id=?"
+        ).bind(existing.id, duplicate.id).run();
+        await env.DB.prepare(
+          "DELETE FROM facebook_media WHERE item_id=?"
+        ).bind(duplicate.id).run();
+        await env.DB.prepare(
+          "DELETE FROM facebook_items WHERE id=?"
+        ).bind(duplicate.id).run();
+      }
+    }
     return "updated";
   }
 
