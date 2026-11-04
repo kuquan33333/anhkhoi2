@@ -133,6 +133,13 @@ test("canonical story migration can match the original photo key and photo ID", 
   assert.match(workerSource, /OR \(\? IS NOT NULL AND source_key=\?\) OR \(\? IS NOT NULL AND facebook_id=\?\)/);
 });
 
+test("canonical story IDs replace photo IDs and alternate placeholders merge safely", () => {
+  assert.match(workerSource, /source_key=\?,facebook_id=\?,fingerprint=\?/);
+  assert.match(workerSource, /ORDER BY CASE WHEN source_key=\? OR \(\? IS NOT NULL AND facebook_id=\?\) THEN 0 ELSE 1 END/);
+  assert.match(workerSource, /UPDATE OR IGNORE facebook_media SET item_id=\? WHERE item_id=\?/);
+  assert.match(workerSource, /DELETE FROM facebook_items WHERE id=\?/);
+});
+
 test("Only Facebook links are accepted for discovered content", () => {
   assert.equal(
     helpers.normalizeFacebookUrl("/reel/1234567890123", "https://www.facebook.com/profile.php?id=61595505020148"),
