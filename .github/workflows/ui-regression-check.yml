@@ -21,6 +21,6 @@ jobs:
       - name: Typecheck Astro and client code
         run: pnpm check
       - name: UI regression tests
-        run: node --test tests/ui-regressions.test.mjs tests/unified-posts.test.mjs tests/facebook-caption-theme-back.test.mjs tests/fuwari-theme-parity.test.mjs tests/curated-taxonomy.test.mjs tests/facebook-sync.test.mjs
+        run: node --test tests/ui-regressions.test.mjs tests/unified-posts.test.mjs tests/facebook-caption-theme-back.test.mjs tests/fuwari-theme-parity.test.mjs tests/curated-taxonomy.test.mjs tests/facebook-sync.test.mjs tests/responsive-pagination-layout.test.mjs
       - name: Production build
         run: pnpm build
