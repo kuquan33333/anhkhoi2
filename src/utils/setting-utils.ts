@@ -15,16 +15,26 @@ export function getDefaultHue(): number {
 
 export function getHue(): number {
 	const stored = localStorage.getItem("hue");
-	return stored ? Number.parseInt(stored, 10) : getDefaultHue();
+	// The former site default (224) was never selectable by the 5-degree slider.
+	// Migrate only that legacy default; preserve visitors' chosen Fuwari hue.
+	if (stored === "224" && localStorage.getItem("ak-fuwari-palette-v2") !== "1") {
+		localStorage.setItem("ak-fuwari-palette-v2", "1");
+		localStorage.removeItem("hue");
+		return getDefaultHue();
+	}
+	const hue = Number(stored);
+	return stored !== null && Number.isFinite(hue) && hue >= 0 && hue <= 360
+		? hue : getDefaultHue();
 }
 
 export function setHue(hue: number): void {
-	localStorage.setItem("hue", String(hue));
+	const normalized = Number.isFinite(hue) ? Math.max(0, Math.min(360, hue)) : getDefaultHue();
+	localStorage.setItem("hue", String(normalized));
 	const r = document.querySelector(":root") as HTMLElement;
 	if (!r) {
 		return;
 	}
-	r.style.setProperty("--hue", String(hue));
+	r.style.setProperty("--hue", String(normalized));
 }
 
 export function applyThemeToDocument(theme: LIGHT_DARK_MODE) {
