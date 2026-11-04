@@ -8,7 +8,7 @@ const workerSource = readFileSync(
 );
 const helpers = runInNewContext(
   workerSource.slice(0, workerSource.indexOf("export default {")) +
-    "\n({ attr, detailFromHtml, discoverFromHtml, discoverFromDomCards, normalizeFacebookUrl, isGenericFacebookMetadata, profileSources })",
+    "\n({ attr, detailFromHtml, discoverFromHtml, discoverFromDomCards, normalizeFacebookUrl, isGenericFacebookMetadata, profileSources, pluginPostDetails, facebookContentId })",
   { URL, TextEncoder, crypto: globalThis.crypto }
 );
 
@@ -47,10 +47,35 @@ test("Reel tiles expose permalink, thumbnail and public alt text", () => {
   assert.equal(items[0].anchorText, "Đây là caption công khai của video");
 });
 
-test("bare Facebook photo navigation links are not mistaken for feed posts", () => {
+test("bare Facebook photo links remain unverified until Post Plugin validation", () => {
   const html = '<a href="/photo.php?fbid=122108148453516834">Photo</a>';
   const items = helpers.discoverFromHtml(html, "https://www.facebook.com/profile.php?id=61595505020148");
-  assert.equal(items.length, 0);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].itemType, "photo");
+  assert.equal(items[0].verifiedByCard, false);
+});
+
+test("Facebook Post Plugin extracts real caption, image, story permalink and timestamp", () => {
+  const html = [
+    '<a href="/permalink.php?story_fbid=122108148501516834&amp;id=61595505020148&amp;ref=embed_post">',
+    '<abbr data-utime="1793633384"></abbr></a>',
+    '<a href="https://www.facebook.com/photo.php?fbid=122108148453516834">',
+    '<img class="_1p6f _1p6g img" src="https://scontent-gru1-2.xx.fbcdn.net/post.jpg" width="500" height="320"></a>',
+    '<div data-testid="post_message" class="_5pbx"><p>🎉 Facebook đã công nhận tôi là người sáng tạo nội dung đang hot tuần này đấy!</p></div>'
+  ].join("");
+  const result = helpers.pluginPostDetails(
+    html,
+    "https://www.facebook.com/photo.php?fbid=122108148453516834"
+  );
+  assert.equal(result.description, "🎉 Facebook đã công nhận tôi là người sáng tạo nội dung đang hot tuần này đấy!");
+  assert.deepEqual([...result.images], ["https://scontent-gru1-2.xx.fbcdn.net/post.jpg"]);
+  assert.equal(
+    result.canonical,
+    "https://www.facebook.com/permalink.php?story_fbid=122108148501516834&id=61595505020148"
+  );
+  assert.equal(helpers.facebookContentId(result.canonical), "122108148501516834");
+  assert.match(result.publishedAt, /^2026-/);
+  assert.equal(result.source, "facebook-post-plugin");
 });
 
 test("real DOM feed cards preserve photo caption and image evidence", () => {
