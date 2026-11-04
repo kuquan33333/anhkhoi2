@@ -201,13 +201,36 @@ import "../utils/facebook-feed-runtime";
 		@apply translate-y-[var(--banner-height-extend)];
 	}
 	.enable-banner #top-row {
-		@apply h-[calc(var(--banner-height-home)_-_4.5rem)] transition-all duration-300
+		@apply h-[calc(var(--banner-height-home)_-_3.75rem)] transition-all duration-300
 	}
 	.enable-banner.is-home #sidebar-sticky {
 		@apply top-[calc(1rem_-_var(--banner-height-extend))]
 	}
 	.navbar-hidden {
 		@apply opacity-0 -translate-y-16
+	}
+	@media (max-width: 767px) {
+		.enable-banner #banner-wrapper {
+			top: 0 !important;
+			height: 9rem !important;
+			transform: none !important;
+			background: var(--page-bg);
+		}
+		.enable-banner #banner {
+			height: 9rem !important;
+			transform: none !important;
+			background: var(--page-bg);
+		}
+		.enable-banner #banner img {
+			object-fit: contain !important;
+			object-position: center center !important;
+		}
+		.enable-banner #main-panel {
+			top: 7.25rem !important;
+		}
+		.enable-banner #top-row {
+			height: auto !important;
+		}
 	}
 }
 </style>
@@ -469,7 +492,7 @@ const setup = () => {
 		if (!bannerEnabled) {
 			return
 		}
-		let threshold = window.innerHeight * (BANNER_HEIGHT / 100) - 72 - 16
+		let threshold = window.innerHeight * (BANNER_HEIGHT / 100) - (window.innerWidth < 768 ? 56 : 60) - 16
 		let navbar = document.getElementById('navbar-wrapper')
 		if (!navbar || !document.body.classList.contains('lg:is-home')) {
 			return
@@ -552,7 +575,7 @@ function scrollFunction() {
 
 	if (!bannerEnabled) return
 	if (navbar) {
-		const NAVBAR_HEIGHT = 72
+		const NAVBAR_HEIGHT = window.innerWidth < 768 ? 56 : 60
 		const MAIN_PANEL_EXCESS_HEIGHT = MAIN_PANEL_OVERLAPS_BANNER_HEIGHT * 16			// The height the main panel overlaps the banner
 
 		let bannerHeight = BANNER_HEIGHT
