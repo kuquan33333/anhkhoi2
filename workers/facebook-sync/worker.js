@@ -662,18 +662,20 @@ async function enrichPendingBatch(env, runId, itemStatus) {
       if (!usefulText && !browserFallbackUsed) {
         browserFallbackUsed = true;
         const browserDetails = detailFromHtml(await browserContent(env, row.permalink), row.permalink);
-        details = {
-          canonical: browserDetails.canonical || details?.canonical || row.permalink,
-          title: browserDetails.title || details?.title || "",
-          description: browserDetails.description || details?.description || "",
-          image: browserDetails.image || details?.image || "",
-          video: browserDetails.video || details?.video || "",
-          images: browserDetails.images?.length ? browserDetails.images : (details?.images || []),
-          mediaWidth: browserDetails.mediaWidth || details?.mediaWidth || null,
-          mediaHeight: browserDetails.mediaHeight || details?.mediaHeight || null,
-          publishedAt: browserDetails.publishedAt || details?.publishedAt || null,
-          blocked: browserDetails.blocked && !details,
-        };
+        if (!isGenericFacebookMetadata(browserDetails)) {
+          details = {
+            canonical: browserDetails.canonical || details?.canonical || row.permalink,
+            title: browserDetails.title || details?.title || "",
+            description: browserDetails.description || details?.description || "",
+            image: browserDetails.image || details?.image || "",
+            video: browserDetails.video || details?.video || "",
+            images: browserDetails.images?.length ? browserDetails.images : (details?.images || []),
+            mediaWidth: browserDetails.mediaWidth || details?.mediaWidth || null,
+            mediaHeight: browserDetails.mediaHeight || details?.mediaHeight || null,
+            publishedAt: browserDetails.publishedAt || details?.publishedAt || null,
+            blocked: browserDetails.blocked && !details,
+          };
+        }
       }
       if (!details) {
         errors++;
@@ -753,7 +755,7 @@ async function sync(env, trigger = "cron") {
   const autoPublish = (await setting(env, "facebook_auto_publish", "true")) === "true";
   const itemStatus = shadow ? "shadow" : (autoPublish ? "published" : "draft");
   const maxItems = Math.min(Math.max(Number(await setting(env, "crawler_max_items_per_run", String(DEFAULT_LIMIT))) || DEFAULT_LIMIT, 1), 100);
-  const maxScrolls = Math.min(Math.max(Number(await setting(env, "crawler_max_scrolls", "8")) || 8, 1), 20);
+  const maxScrolls = Math.min(Math.max(Number(await setting(env, "crawler_max_scrolls", "12")) || 12, 1), 30);
 
   let sources;
   const allSources = profileSources(profile, reels);
