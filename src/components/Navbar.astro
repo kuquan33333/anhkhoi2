@@ -83,7 +83,8 @@ let links: NavBarLink[] = navBarConfig.links.map(
 import { AUTO_MODE, DARK_MODE, LIGHT_MODE } from "../constants/constants";
 import { applyThemeToDocument, getStoredTheme, setTheme } from "../utils/setting-utils";
 
-const themeSequence = [LIGHT_MODE, DARK_MODE, AUTO_MODE];
+type ThemeMode = typeof LIGHT_MODE | typeof DARK_MODE | typeof AUTO_MODE;
+const themeSequence: ThemeMode[] = [LIGHT_MODE, DARK_MODE, AUTO_MODE];
 
 function syncThemeControls() {
     const mode = getStoredTheme();
@@ -96,8 +97,8 @@ function syncThemeControls() {
 }
 
 function chooseTheme(mode: string) {
-    if (!themeSequence.includes(mode as typeof LIGHT_MODE)) return;
-    setTheme(mode as typeof LIGHT_MODE);
+    if (!themeSequence.includes(mode as ThemeMode)) return;
+    setTheme(mode as ThemeMode);
     syncThemeControls();
 }
 
