@@ -11,7 +11,7 @@ export async function onRequestGet({ env }) {
     }
 
     await env.DB.prepare(
-      "DELETE FROM admin_login_challenges WHERE expires_at<=datetime('now')"
+      "DELETE FROM admin_login_challenges WHERE datetime(expires_at)<=datetime('now')"
     ).run();
 
     const challengeId = randomToken(18);
