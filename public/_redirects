@@ -1,0 +1,4 @@
+# Legacy example-post URLs now resolve to their Admin-managed records.
+/posts/chao-mung-anh-khoi-ai-media/ /bai-viet/?slug=chao-mung-anh-khoi-ai-media 301
+/posts/video-ai-ke-chuyen/ /bai-viet/?slug=video-ai-ke-chuyen 301
+/posts/tin-cong-nghe-va-kiem-chung/ /bai-viet/?slug=tin-cong-nghe-va-kiem-chung 301

@@ -82,24 +82,29 @@ const title = "Admin · Anh Khôi AI Media";
       </section>
 
       <section class="card col6">
-        <div class="row between"><h2 id="manualHeading">Đăng bài thủ công</h2><button id="newPostBtn" class="btn alt mini" type="button">Bài mới</button></div>
+        <div class="row between"><h2 id="manualHeading">Quản lý tất cả bài viết</h2><button id="newPostBtn" class="btn alt mini" type="button">+ Viết bài mới</button></div>
         <form id="manualForm">
           <input id="manualId" type="hidden" />
-          <label>Tiêu đề</label><input id="manualTitle" />
+          <label>Tiêu đề (Tiếng Việt)</label><input id="manualTitle" />
+          <label>Tiêu đề tiếng Anh (không bắt buộc)</label><input id="manualTitleEn" />
           <label>Slug (để trống sẽ tự tạo)</label><input id="manualSlug" placeholder="ten-bai-viet" />
           <div class="grid" style="gap:10px">
             <div class="col6"><label>Chuyên mục</label><input id="manualCategory" placeholder="Công nghệ" /></div>
             <div class="col6"><label>Tag, cách nhau bằng dấu phẩy</label><input id="manualTags" placeholder="AI, Facebook, Video" /></div>
           </div>
           <label>Ngôn ngữ</label><select id="manualLanguage"><option value="vi">Tiếng Việt</option><option value="en">English</option></select>
-          <label>Mô tả ngắn</label><input id="manualExcerpt" />
+          <label>Mô tả ngắn (Tiếng Việt)</label><input id="manualExcerpt" />
+          <label>Mô tả ngắn tiếng Anh (không bắt buộc)</label><input id="manualExcerptEn" />
           <label>Ảnh bìa</label><input id="manualCover" placeholder="Chọn từ thư viện ảnh bên dưới" readonly />
           <img id="manualCoverPreview" class="cover-preview hidden" alt="Ảnh bìa" />
-          <label>Nội dung Markdown</label><textarea id="manualBody" style="min-height:260px"></textarea>
+          <label>Nội dung Markdown (Tiếng Việt)</label><textarea id="manualBody" style="min-height:260px"></textarea>
+          <label>Nội dung Markdown tiếng Anh (không bắt buộc)</label><textarea id="manualBodyEn" style="min-height:180px"></textarea>
+          <label>Ngày xuất bản (có thể chỉnh sửa)</label><input id="manualPublishedAt" type="date" />
+          <p class="muted" style="font-size:12px;margin:6px 0">Bài mẫu và bài mới đều nằm trong cùng danh sách. Để trống ngày đăng khi tạo bài mới sẽ dùng ngày hiện tại.</p>
           <label>Trạng thái</label><select id="manualStatus"><option value="draft">Nháp</option><option value="published">Xuất bản</option></select>
           <div class="row" style="margin-top:12px"><button class="btn">Lưu bài</button><button id="deletePostBtn" class="btn danger hidden" type="button">Xóa bài</button><span id="manualMsg" class="muted"></span></div>
         </form>
-        <h3>Bài gần đây</h3><div id="manualList" class="muted"></div>
+        <h3>Tất cả bài viết — sửa, ẩn, xuất bản hoặc xóa</h3><div id="manualList" class="muted"></div>
       </section>
 
       <section class="card col12">
@@ -208,24 +213,49 @@ async function loadRuns(){
 }
 async function loadManual(){
   const {data}=await api("/api/admin/manual-posts"); if(!data.ok)return;
-  $("#manualList").innerHTML=(data.posts||[]).slice(0,20).map(p=>{
+  const posts=Array.isArray(data.posts)?data.posts:[];
+  $("#manualList").innerHTML=posts.map(p=>{
+    const date=p.published_at?String(p.published_at).slice(0,10):"Chưa xuất bản";
+    const tags=(p.tags||[]).map(t=>"#"+t).join(" / ");
     const open=p.status==="published"?'<a class="btn alt mini" target="_blank" rel="noopener" href="/bai-viet/?slug='+encodeURIComponent(p.slug)+'">Xem</a>':"";
-    return '<div class="post-row row between"><div><b>'+esc(p.title)+'</b><br><span class="pill">'+esc(p.status)+'</span> <span class="muted">'+esc(p.slug)+'</span></div><div class="row"><button class="btn alt mini" type="button" data-edit-post="'+p.id+'">Sửa</button>'+open+'</div></div>';
-  }).join("")||"Chưa có bài thủ công.";
+    return '<div class="post-row row between"><div style="flex:1;min-width:200px"><b>'+esc(p.title)+'</b><br>'+
+      '<span class="pill">'+esc(p.status==="published"?"Đã xuất bản":"Bản nháp")+'</span> '+
+      '<span class="muted">'+esc(date)+' · '+esc(p.category||"Chưa phân loại")+'</span><br>'+
+      '<span class="muted">'+esc(tags||"Chưa có tag")+'</span></div>'+
+      '<div class="row"><button class="btn alt mini" type="button" data-edit-post="'+p.id+'">Sửa</button>'+
+      open+'<button class="btn alt mini" type="button" data-toggle-post="'+p.id+'" data-next-status="'+(p.status==="published"?"draft":"published")+'">'+(p.status==="published"?"Ẩn":"Xuất bản")+'</button>'+
+      '<button class="btn danger mini" type="button" data-remove-post="'+p.id+'">Xóa</button></div></div>';
+  }).join("")||"Chưa có bài viết.";
   document.querySelectorAll("[data-edit-post]").forEach(el=>el.addEventListener("click",()=>editPost(el.dataset.editPost)));
+  document.querySelectorAll("[data-toggle-post]").forEach(el=>el.addEventListener("click",async()=>{
+    const id=el.dataset.togglePost,next=el.dataset.nextStatus;
+    const p=posts.find(x=>String(x.id)===id);if(!p)return;
+    if(next==="draft"&&!confirm("Ẩn bài \""+p.title+"\" khỏi website? Bạn có thể xuất bản lại bất cứ lúc nào."))return;
+    const {data:r}=await api("/api/admin/manual-posts/"+id,{method:"PATCH",body:JSON.stringify({status:next})});
+    $("#manualMsg").textContent=r.ok?(next==="draft"?"Đã ẩn bài":"Đã xuất bản bài"):("Lỗi: "+(r.error||""));
+    if(r.ok)await loadManual();
+  }));
+  document.querySelectorAll("[data-remove-post]").forEach(el=>el.addEventListener("click",async()=>{
+    const id=el.dataset.removePost;
+    const p=posts.find(x=>String(x.id)===id);if(!p)return;
+    if(!confirm("Xóa vĩnh viễn bài \""+p.title+"\"? Hành động này không hoàn tác được."))return;
+    const {data:r}=await api("/api/admin/manual-posts/"+id,{method:"DELETE"});
+    $("#manualMsg").textContent=r.ok?"Đã xóa bài":("Lỗi: "+(r.error||""));
+    if(r.ok){if($("#manualId").value===id)resetManual();await loadManual();}
+  }));
 }
 async function editPost(id){
   const {data}=await api("/api/admin/manual-posts/"+id); if(!data.ok)return;
   const p=data.post;
-  $("#manualId").value=p.id;$("#manualTitle").value=p.title||"";$("#manualSlug").value=p.slug||"";
-  $("#manualExcerpt").value=p.excerpt||"";$("#manualCategory").value=p.category||"";
-  $("#manualTags").value=(p.tags||[]).join(", ");$("#manualLanguage").value=p.language||"vi";$("#manualBody").value=p.body_markdown||"";
+  $("#manualId").value=p.id;$("#manualTitle").value=p.title||"";$("#manualTitleEn").value=p.title_en||"";$("#manualSlug").value=p.slug||"";
+  $("#manualExcerpt").value=p.excerpt||"";$("#manualExcerptEn").value=p.excerpt_en||"";$("#manualCategory").value=p.category||"";
+  $("#manualTags").value=(p.tags||[]).join(", ");$("#manualLanguage").value=p.language||"vi";$("#manualBody").value=p.body_markdown||"";$("#manualBodyEn").value=p.body_markdown_en||"";$("#manualPublishedAt").value=p.published_at?String(p.published_at).slice(0,10):"";
   $("#manualStatus").value=p.status||"draft";setCover(p.cover_r2_key||"");
   $("#manualHeading").textContent="Sửa bài viết";$("#deletePostBtn").classList.remove("hidden");
   $("#manualMsg").textContent="Đang sửa #"+p.id;$("#manualForm").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function resetManual(){
-  $("#manualForm").reset();$("#manualId").value="";$("#manualHeading").textContent="Đăng bài thủ công";
+  $("#manualForm").reset();$("#manualId").value="";$("#manualHeading").textContent="Quản lý tất cả bài viết";
   $("#deletePostBtn").classList.add("hidden");$("#manualMsg").textContent="";setCover("");
 }
 function setCover(key){
@@ -282,7 +312,7 @@ $("#saveSettings").addEventListener("click",async()=>{const settings={};document
 $("#passwordForm").addEventListener("submit",async e=>{e.preventDefault();const {data}=await api("/api/admin/password",{method:"POST",body:JSON.stringify({currentPassword:$("#currentPassword").value,newPassword:$("#newPassword").value})});$("#passwordMsg").textContent=data.ok?"Đã đổi mật khẩu":(data.error||"Lỗi");});
 $("#manualForm").addEventListener("submit",async e=>{
   e.preventDefault();const id=$("#manualId").value.trim();
-  const payload={title:$("#manualTitle").value,slug:$("#manualSlug").value,excerpt:$("#manualExcerpt").value,category:$("#manualCategory").value,language:$("#manualLanguage").value,tags:$("#manualTags").value.split(",").map(x=>x.trim()).filter(Boolean),coverR2Key:$("#manualCover").value,bodyMarkdown:$("#manualBody").value,status:$("#manualStatus").value};
+  const payload={title:$("#manualTitle").value,titleEn:$("#manualTitleEn").value,slug:$("#manualSlug").value,excerpt:$("#manualExcerpt").value,excerptEn:$("#manualExcerptEn").value,category:$("#manualCategory").value,language:$("#manualLanguage").value,tags:$("#manualTags").value.split(",").map(x=>x.trim()).filter(Boolean),coverR2Key:$("#manualCover").value,bodyMarkdown:$("#manualBody").value,bodyMarkdownEn:$("#manualBodyEn").value,publishedAt:$("#manualPublishedAt").value,status:$("#manualStatus").value};
   const {data}=await api(id?("/api/admin/manual-posts/"+id):"/api/admin/manual-posts",{method:id?"PATCH":"POST",body:JSON.stringify(payload)});
   $("#manualMsg").textContent=data.ok?"Đã lưu bài":"Lỗi: "+(data.error||"");
   if(data.ok){resetManual();await loadManual();}

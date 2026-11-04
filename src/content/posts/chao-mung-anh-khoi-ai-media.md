@@ -6,7 +6,7 @@ description: "Một không gian để khám phá video AI, tin đáng chú ý v�
 descriptionEn: "A creative home for AI videos, noteworthy stories and technology with Anh Khoi."
 tags: ["AI", "Sáng tạo", "Anh Khôi"]
 category: "Góc sáng tạo"
-draft: false
+draft: true
 ---
 
 <div class="ak-lang-vi">
