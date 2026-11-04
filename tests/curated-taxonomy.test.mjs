@@ -6,20 +6,23 @@ const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8"
 const categories = [
   "Thời sự & Xã hội",
   "Thế giới",
-  "Sức khỏe & Y tế",
-  "Khoa học & Thiên văn",
-  "Công nghệ & AI",
+  "Quân sự & Quốc phòng",
+  "Pháp luật & An ninh",
   "Kinh tế & Kinh doanh",
+  "Công nghệ & AI",
+  "Khoa học & Thiên văn",
+  "Sức khỏe & Y tế",
+  "Giáo dục",
   "Đời sống & Tạp chí",
   "Văn hóa & Giải trí",
   "Thể thao",
 ];
 
-test("editorial taxonomy supports broad coverage without sidebar sprawl", () => {
+test("editorial taxonomy supports twelve broad sections without sidebar sprawl", () => {
   const api = read("functions/api/post-taxonomy.js");
   for (const category of categories) assert.ok(api.includes(category));
   assert.match(api, /filter\(item => item\.count >= 2\)/);
-  assert.match(api, /slice\(0, 10\)/);
+  assert.match(api, /slice\(0, 12\)/);
 });
 
 test("admin exposes broad fixed categories and at most three unique topics", () => {
@@ -39,7 +42,7 @@ test("admin exposes broad fixed categories and at most three unique topics", () 
   assert.match(admin, /Khoa học &amp; Thiên văn|Khoa học & Thiên văn/);
   assert.match(admin, /Đời sống &amp; Tạp chí|Đời sống & Tạp chí/);
   assert.match(admin, /Chủ đề \(tối đa 3/);
-  assert.match(admin, /tối đa 10 chủ đề/);
+  assert.match(admin, /tối đa 12 chủ đề/);
 });
 
 test("current posts are remapped out of the old narrow five-category taxonomy", () => {
