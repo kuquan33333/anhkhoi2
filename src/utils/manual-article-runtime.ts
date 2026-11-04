@@ -89,22 +89,65 @@ export async function mountManualArticle(force = false) {
         new URL(location.href).searchParams.get("slug") !== slug) return;
 
     const title = byId("ak-live-title");
-    if (title) title.textContent = post.title || "Bài viết";
+    if (title) {
+      title.dataset.akVi = post.title || "Bài viết";
+      title.dataset.akEn = post.title_en || post.title || "Article";
+      title.textContent = document.documentElement.dataset.akLocale === "en" ?
+        title.dataset.akEn : title.dataset.akVi;
+    }
     const excerpt = byId("ak-live-excerpt");
     if (excerpt) {
-      excerpt.textContent = post.excerpt || "";
-      excerpt.classList.toggle("hidden", !post.excerpt);
+      excerpt.dataset.akVi = post.excerpt || "";
+      excerpt.dataset.akEn = post.excerpt_en || post.excerpt || "";
+      excerpt.textContent = document.documentElement.dataset.akLocale === "en" ?
+        excerpt.dataset.akEn : excerpt.dataset.akVi;
+      excerpt.classList.toggle("hidden", !post.excerpt && !post.excerpt_en);
     }
     const meta = byId("ak-live-meta");
     if (meta) {
-      const date = post.published_at ?
-        new Intl.DateTimeFormat("vi-VN", { dateStyle: "long" }).format(new Date(post.published_at)) : "";
+      const format = (s: string) => {
+        const date = new Date(s);
+        return Number.isNaN(date.valueOf()) ? "" :
+          date.getUTCFullYear() + "-" + String(date.getUTCMonth() + 1).padStart(2, "0") +
+          "-" + String(date.getUTCDate()).padStart(2, "0");
+      };
+      const metaPart = (label: string, sign: string, url?: string) => {
+        const node = document.createElement(url ? "a" : "span");
+        node.className = "ak-article-meta-part";
+        if (url && node instanceof HTMLAnchorElement) node.href = url;
+        const symbol = document.createElement("span");
+        symbol.className = "ak-article-meta-symbol";
+        symbol.textContent = sign;
+        const content = document.createElement("span");
+        content.textContent = label;
+        node.append(symbol, content);
+        return node;
+      };
       meta.replaceChildren();
-      for (const label of [post.category || "Bài viết", date].filter(Boolean)) {
-        const pill = document.createElement("span");
-        pill.textContent = label;
-        meta.appendChild(pill);
-      }
+      if (post.published_at) meta.append(metaPart(format(post.published_at), "▣"));
+      const category = String(post.category || "").trim();
+      meta.append(metaPart(category || "Chưa phân loại", "▤",
+        category ? "/archive/?category=" + encodeURIComponent(category) : "/archive/?uncategorized=true"));
+      const tags = Array.isArray(post.tags) ? post.tags : [];
+      const tagsWrap = document.createElement("span");
+      tagsWrap.className = "ak-article-meta-tags";
+      const badge = document.createElement("span");
+      badge.className = "ak-article-meta-symbol";
+      badge.textContent = "#";
+      tagsWrap.append(badge);
+      if (tags.length) tags.forEach((tag: string, index: number) => {
+        if (index) {
+          const slash = document.createElement("span");
+          slash.textContent = " / ";
+          tagsWrap.append(slash);
+        }
+        const link = document.createElement("a");
+        link.href = "/archive/?tag=" + encodeURIComponent(tag);
+        link.textContent = tag;
+        tagsWrap.append(link);
+      });
+      else tagsWrap.append(document.createTextNode("Chưa có tag"));
+      meta.append(tagsWrap);
     }
     const figure = byId("ak-live-figure");
     const cover = byId("ak-live-cover") as HTMLImageElement | null;
@@ -119,7 +162,15 @@ export async function mountManualArticle(force = false) {
       }
     }
     const body = byId("ak-live-body");
-    if (body) body.innerHTML = markdown.render(post.body_markdown || "");
+    if (body) {
+      const vi = document.createElement("div");
+      vi.className = "ak-lang-vi";
+      vi.innerHTML = markdown.render(post.body_markdown || "");
+      const en = document.createElement("div");
+      en.className = "ak-lang-en";
+      en.innerHTML = markdown.render(post.body_markdown_en || post.body_markdown || "");
+      body.replaceChildren(vi, en);
+    }
     const tags = byId("ak-live-tags");
     if (tags) {
       tags.replaceChildren();
@@ -130,7 +181,8 @@ export async function mountManualArticle(force = false) {
         tags.appendChild(chip);
       }
     }
-    document.title = (post.title || "Bài viết") + " - Anh Khôi AI Media";
+    document.title = ((document.documentElement.dataset.akLocale === "en" ?
+      post.title_en || post.title : post.title) || "Bài viết") + " - Anh Khôi AI Media";
     byId("ak-live-loading")?.classList.add("hidden");
     byId("ak-live-content")?.classList.remove("hidden");
   } catch (error) {
