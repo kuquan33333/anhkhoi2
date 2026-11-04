@@ -38,7 +38,9 @@ function stripTags(html) {
 }
 
 function attr(tag, name) {
-  const re = new RegExp("\\\\b" + name + "\\\\s*=\\\\s*(?:\\\"([^\\\"]*)\\\"|'([^']*)'|([^\\\\s>]+))", "i");
+  // Use one RegExp escape level: the old expression matched literal \\b and \\s,
+  // so <img src>, <meta content> and <a href> were often unreadable.
+  const re = new RegExp("\\b" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))", "i");
   const m = String(tag || "").match(re);
   return htmlDecode(m ? (m[1] ?? m[2] ?? m[3] ?? "") : "");
 }
@@ -50,6 +52,18 @@ function metaValueFromHtml(html, property) {
     if (key.toLowerCase() === String(property).toLowerCase()) return attr(tag, "content");
   }
   return "";
+}
+
+function metaValuesFromHtml(html, property) {
+  const values = [];
+  for (const tag of String(html || "").match(/<meta\b[^>]*>/gi) || []) {
+    const key = attr(tag, "property") || attr(tag, "name");
+    if (key.toLowerCase() === String(property).toLowerCase()) {
+      const value = attr(tag, "content");
+      if (value && !values.includes(value)) values.push(value);
+    }
+  }
+  return values;
 }
 
 function canonicalFromHtml(html) {
@@ -202,7 +216,7 @@ async function browserScrollContent(env, url, maxScrolls = 8) {
     const limit = Math.min(Math.max(Number(maxScrolls) || 8, 1), 20);
     for (let i = 0; i < limit; i++) {
       const evaluated = await sendCdpCommand(socket, 'Runtime.evaluate', {
-        expression: "(() => { const reels=document.querySelectorAll('a[aria-label=\\\"Reel tile preview\\\"]' ).length; const height=Math.max(document.body?.scrollHeight||0,document.documentElement?.scrollHeight||0); window.scrollTo(0,height); return {reels,height}; })()",
+        expression: "(() => { const links=[...document.querySelectorAll('a[href]')].filter(a=>/\\/(?:reel|posts|videos)\\/|photo\\.php|story\\.php/.test(a.getAttribute('href')||'')).length; const height=Math.max(document.body?.scrollHeight||0,document.documentElement?.scrollHeight||0); window.scrollTo(0,height); return {reels:links,height}; })()",
         returnByValue: true,
         awaitPromise: true,
       });
@@ -277,7 +291,9 @@ function discoverFromHtml(html, baseUrl) {
     const thumbnailUrl = attr(imgTag, "src") || null;
     const visibleText = stripTags(inner);
     const viewMatch = visibleText.match(/\b\d+(?:[.,]\d+)?\s*(?:K|M|B)?\b/i);
-    addCandidate(seen, tile[1], baseUrl, "", {
+    const alt = attr(imgTag, "alt").trim();
+    const caption = alt && alt.length > 10 && !/^(reel|video|facebook|ảnh đại diện)/i.test(alt) ? alt : "";
+    addCandidate(seen, tile[1], baseUrl, caption, {
       thumbnailUrl,
       viewLabel: viewMatch ? viewMatch[0].replace(/\s+/g, "") : null,
     });
@@ -306,12 +322,19 @@ async function sha256Hex(value) {
 
 function detailFromHtml(html, url) {
   const canonical = metaValueFromHtml(html, "og:url") || canonicalFromHtml(html) || url;
+  const width = Number(metaValueFromHtml(html, "og:video:width") || metaValueFromHtml(html, "twitter:player:width")) || null;
+  const height = Number(metaValueFromHtml(html, "og:video:height") || metaValueFromHtml(html, "twitter:player:height")) || null;
   return {
     canonical: normalizeFacebookUrl(canonical, url) || url,
-    title: metaValueFromHtml(html, "og:title"),
-    description: metaValueFromHtml(html, "og:description"),
-    image: metaValueFromHtml(html, "og:image"),
+    title: metaValueFromHtml(html, "og:title") || metaValueFromHtml(html, "twitter:title"),
+    description: metaValueFromHtml(html, "og:description") ||
+      metaValueFromHtml(html, "twitter:description") ||
+      metaValueFromHtml(html, "description"),
+    image: metaValueFromHtml(html, "og:image") || metaValueFromHtml(html, "twitter:image"),
+    images: metaValuesFromHtml(html, "og:image").slice(0, 20),
     video: metaValueFromHtml(html, "og:video") || metaValueFromHtml(html, "og:video:url"),
+    mediaWidth: width,
+    mediaHeight: height,
     publishedAt: metaValueFromHtml(html, "article:published_time") || null,
     blocked: looksBlocked(stripTags(html).slice(0, 15000)),
   };
@@ -357,6 +380,9 @@ async function detail(env, url) {
       description: browser.description || direct?.description || "",
       image: browser.image || direct?.image || "",
       video: browser.video || direct?.video || "",
+      images: browser.images?.length ? browser.images : (direct?.images || []),
+      mediaWidth: browser.mediaWidth || direct?.mediaWidth || null,
+      mediaHeight: browser.mediaHeight || direct?.mediaHeight || null,
       publishedAt: browser.publishedAt || direct?.publishedAt || null,
       blocked: browser.blocked && !direct,
     };
@@ -392,12 +418,36 @@ async function cacheImage(env, sourceUrl, fingerprint) {
   }
 }
 
+async function savePublicImages(env, itemId, itemType, details) {
+  if (!itemId || !details || !["post", "photo"].includes(itemType)) return;
+  const urls = [...new Set(details.images || [])].slice(0, 12);
+  for (let i = 0; i < urls.length; i++) {
+    const source = urls[i];
+    try {
+      const u = new URL(source);
+      if (u.protocol !== "https:" ||
+          !(u.hostname.endsWith(".fbcdn.net") || u.hostname.endsWith(".facebook.com"))) continue;
+      const previous = await env.DB.prepare(
+        "SELECT r2_key FROM facebook_media WHERE item_id=? AND source_url=? LIMIT 1"
+      ).bind(itemId, source).first();
+      const fingerprint = await sha256Hex(source);
+      const r2Key = previous?.r2_key || (i < 4 ? await cacheImage(env, source, fingerprint) : null);
+      await env.DB.prepare(
+        "INSERT INTO facebook_media(item_id,media_type,source_url,r2_key,ordinal) VALUES(?,'image',?,?,?) " +
+        "ON CONFLICT(item_id,source_url) DO UPDATE SET r2_key=COALESCE(excluded.r2_key,facebook_media.r2_key),ordinal=excluded.ordinal"
+      ).bind(itemId, source, r2Key, i).run();
+    } catch { /* An unavailable image must never prevent publishing its post. */ }
+  }
+}
+
 async function upsertItem(env, candidate, details, sourceUrl, status) {
   const permalink = candidate.permalink || details?.canonical;
   const facebookId = candidate.facebookId || facebookContentId(permalink);
   const fingerprint = await sha256Hex(permalink);
   const sourceKey = candidate.permalink;
-  const caption = (details?.description || candidate.anchorText || details?.title || "").slice(0, 20000);
+  const sourceCaption = details?.description || candidate.anchorText || details?.title || "";
+  const caption = /^(facebook|log in to facebook|đăng nhập vào facebook)(?:[\s.\-:]|$)/i.test(sourceCaption.trim())
+    ? "" : sourceCaption.slice(0, 20000);
   const thumbnailUrl = details?.image || candidate.thumbnailUrl || null;
 
   const existing = await env.DB.prepare(
@@ -405,7 +455,7 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
   ).bind(sourceKey, facebookId, facebookId).first();
 
   let r2Key = existing?.r2_thumbnail_key || null;
-  if (details && thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
+  if (thumbnailUrl && !r2Key) r2Key = await cacheImage(env, thumbnailUrl, fingerprint);
 
   let previousRaw = {};
   try { previousRaw = JSON.parse(existing?.raw_json || "{}"); } catch {}
@@ -416,6 +466,8 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
     title: details?.title || previousRaw.title || "",
     canonicalUrl: details?.canonical || previousRaw.canonicalUrl || null,
     video: details?.video || previousRaw.video || "",
+    mediaWidth: details?.mediaWidth || previousRaw.mediaWidth || null,
+    mediaHeight: details?.mediaHeight || previousRaw.mediaHeight || null,
   };
   const rawJson = JSON.stringify(rawObject).slice(0, 50000);
   const detectedEmbedStatus = details?.video ? "detected" : null;
@@ -441,16 +493,18 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
       thumbnailUrl, r2Key, permalink || null, detectedEmbedStatus,
       status, status, rawJson, existing.id
     ).run();
+    await savePublicImages(env, existing.id, candidate.itemType, details);
     return "updated";
   }
 
-  await env.DB.prepare(
+  const insertion = await env.DB.prepare(
     "INSERT INTO facebook_items(source_key,facebook_id,permalink,item_type,caption,published_at,thumbnail_url,r2_thumbnail_key,embed_url,embed_status,status,fingerprint,raw_json) " +
     "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
   ).bind(
     sourceKey, facebookId, permalink, candidate.itemType, caption, details?.publishedAt || null,
     thumbnailUrl, r2Key, permalink, detectedEmbedStatus || "unknown", status, fingerprint, rawJson
   ).run();
+  await savePublicImages(env, insertion.meta?.last_row_id, candidate.itemType, details);
   return "inserted";
 }
 
@@ -497,6 +551,9 @@ async function enrichPendingBatch(env, runId, itemStatus) {
           description: browserDetails.description || details?.description || "",
           image: browserDetails.image || details?.image || "",
           video: browserDetails.video || details?.video || "",
+          images: browserDetails.images?.length ? browserDetails.images : (details?.images || []),
+          mediaWidth: browserDetails.mediaWidth || details?.mediaWidth || null,
+          mediaHeight: browserDetails.mediaHeight || details?.mediaHeight || null,
           publishedAt: browserDetails.publishedAt || details?.publishedAt || null,
           blocked: browserDetails.blocked && !details,
         };
@@ -571,13 +628,23 @@ async function sync(env, trigger = "cron") {
     const minute = now.getUTCMinutes();
     const hour = now.getUTCHours();
 
-    if (minute < 30 && hour % 6 !== 3) {
+    // Every :30 discovers Reels. Every third :00 probes public profile tabs;
+    // other :00 runs enrich available captions/media. No login or Meta API.
+    if (minute < 30 && hour % 3 !== 0) {
       return enrichPendingBatch(env, runId, itemStatus);
     }
-
-    // Probe the normal profile every 6 hours (03/09/15/21 UTC) because Facebook currently
-    // shows a login wall to unauthenticated browsers. Other :00 runs enrich metadata.
-    sources = [minute < 30 ? profile : reels].filter(Boolean);
+    if (minute >= 30) {
+      sources = [reels].filter(Boolean);
+    } else {
+      const source = profile ? new URL(profile) : null;
+      if (source) {
+        const tab = Math.floor(hour / 3) % 4;
+        if (tab === 1) source.searchParams.set("sk", "posts");
+        if (tab === 2) source.searchParams.set("sk", "photos");
+        if (tab === 3) source.searchParams.set("sk", "videos");
+      }
+      sources = source ? [source.toString()] : [];
+    }
   } else {
     // A manual admin sync prioritizes discovery and uses only one Browser Run.
     sources = [reels].filter(Boolean);
@@ -591,12 +658,8 @@ async function sync(env, trigger = "cron") {
     if (!source) continue;
     try {
       let html;
-      if (source === reels) {
-        try { html = await browserScrollContent(env, source, maxScrolls); }
-        catch { html = await browserContent(env, source); }
-      } else {
-        html = await browserContent(env, source);
-      }
+      try { html = await browserScrollContent(env, source, maxScrolls); }
+      catch { html = await browserContent(env, source); }
       let body = stripTags(html).slice(0, 15000);
       let found = discoverFromHtml(html, source);
       if (looksBlocked(body) && found.length === 0 && trigger !== "cron") {
