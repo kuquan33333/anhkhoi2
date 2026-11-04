@@ -3,16 +3,16 @@
 const title = "Admin · Anh Khôi AI Media";
 ---
 <!doctype html>
-<html lang="vi">
+<html lang="vi" class="ak-admin-root">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="noindex,nofollow,noarchive" />
   <link rel="icon" href="/favicon-ak.png" sizes="64x64" />
   <title>{title}</title>
-  <style>
-    :root{font-family:Inter,Roboto,system-ui,sans-serif;color-scheme:dark;background:#07101f;color:#edf5ff}
-    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#173367 0,#07101f 34rem);min-height:100vh}
+  <style is:inline>
+    html.ak-admin-root{font-family:Inter,Roboto,system-ui,sans-serif;color-scheme:dark;background:#07101f;color:#edf5ff}
+    .ak-admin-page,.ak-admin-page *{box-sizing:border-box}body.ak-admin-page{margin:0;background:radial-gradient(circle at 20% 0,#173367 0,#07101f 34rem);min-height:100vh;color:#edf5ff}
     button,input,textarea,select{font:inherit}.wrap{max-width:1180px;margin:auto;padding:24px}.brand{display:flex;gap:12px;align-items:center;margin-bottom:22px}
     .brand img{width:42px;height:42px;border-radius:12px}.brand b{font-size:20px}.muted{color:#8da1bb}.card{background:#0c1729e8;border:1px solid #ffffff14;border-radius:18px;padding:18px;box-shadow:0 18px 50px #0005}
     .login{max-width:430px;margin:10vh auto}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.col6{grid-column:span 6}.col12{grid-column:span 12}
@@ -26,7 +26,7 @@ const title = "Admin · Anh Khôi AI Media";
     @media(max-width:760px){.wrap{padding:14px}.col6{grid-column:span 12}.card{padding:14px}th:nth-child(3),td:nth-child(3){display:none}.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
-<body>
+<body class="ak-admin-page">
 <div class="wrap">
   <div class="brand"><img src="/favicon-ak.png" alt=""><div><b>Anh Khôi AI Media</b><div class="muted">Quản trị nội dung & đồng bộ Facebook</div></div></div>
 
