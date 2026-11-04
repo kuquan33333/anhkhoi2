@@ -56,7 +56,7 @@ export async function authenticate(request, env, rotateCsrf = false) {
   const tokenHash = await sha256(token);
   const row = await env.DB.prepare(
     "SELECT s.id AS session_id,s.csrf_token_hash,s.expires_at,u.id AS user_id,u.username,u.role,u.must_change_password " +
-    "FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>datetime('now') LIMIT 1"
+    "FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND datetime(s.expires_at)>datetime('now') LIMIT 1"
   ).bind(tokenHash).first();
   if (!row) return null;
   await env.DB.prepare("UPDATE sessions SET last_seen_at=datetime('now') WHERE id=?").bind(row.session_id).run();
