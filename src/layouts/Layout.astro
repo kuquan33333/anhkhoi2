@@ -87,7 +87,7 @@ const bannerOffset =
 		<meta name="description" content={description || pageTitle}>
 		<meta name="author" content={profileConfig.name}>
 		<meta property="og:image" content={new URL("/assets/anhkhoi-cover.webp",Astro.site).toString()}>
-		<meta name="theme-color" content="#1853b9">
+		<meta name="theme-color" content="#ebedf5">
 		<link rel="apple-touch-icon" href={url("/favicon-ak.png")} />
 
 		<meta property="og:site_name" content={siteConfig.title}>
@@ -117,26 +117,33 @@ const bannerOffset =
 
 		<!-- Set the theme before the page is rendered to avoid a flash -->
 		<script is:inline define:vars={{DEFAULT_THEME, LIGHT_MODE, DARK_MODE, AUTO_MODE, BANNER_HEIGHT_EXTEND, PAGE_WIDTH, configHue}}>
-			// Load the theme from local storage
-			const theme = localStorage.getItem('theme') || DEFAULT_THEME;
-			switch (theme) {
-				case LIGHT_MODE:
-					document.documentElement.classList.remove('dark');
-					break
-				case DARK_MODE:
-					document.documentElement.classList.add('dark');
-					break
-				case AUTO_MODE:
-					if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-						document.documentElement.classList.add('dark');
-					} else {
-						document.documentElement.classList.remove('dark');
-					}
-			}
+			// Restore Fuwari's light / dark / system theme before first paint.
+			const root = document.documentElement;
+			const savedTheme = localStorage.getItem('theme');
+			const theme = [LIGHT_MODE, DARK_MODE, AUTO_MODE].includes(savedTheme)
+				? savedTheme : DEFAULT_THEME;
+			const dark = theme === DARK_MODE ||
+				(theme === AUTO_MODE && window.matchMedia('(prefers-color-scheme: dark)').matches);
+			root.classList.toggle('dark', dark);
+			root.dataset.appliedTheme = dark ? DARK_MODE : LIGHT_MODE;
+			root.style.colorScheme = dark ? DARK_MODE : LIGHT_MODE;
+			document.querySelector('meta[name="theme-color"]')?.setAttribute(
+				'content', dark ? '#11151d' : '#ebedf5'
+			);
 
-			// Load the hue from local storage
-			const hue = localStorage.getItem('hue') || configHue;
-			document.documentElement.style.setProperty('--hue', hue);
+			// The previous site's default hue was 224; the original Fuwari uses 250.
+			// The custom slider selects multiples of five, so a stored 224 is
+			// the legacy default, not a value selected from the slider.
+			let savedHue = localStorage.getItem('hue');
+			if (savedHue === '224' && localStorage.getItem('ak-fuwari-palette-v2') !== '1') {
+				localStorage.setItem('ak-fuwari-palette-v2', '1');
+				localStorage.removeItem('hue');
+				savedHue = null;
+			}
+			const value = savedHue === null ? Number(configHue) : Number(savedHue);
+			const hue = Number.isFinite(value) && value >= 0 && value <= 360
+				? value : Number(configHue);
+			root.style.setProperty('--hue', String(hue));
 
 			// calculate the --banner-height-extend, which needs to be a multiple of 4 to avoid blurry text
 			let offset = Math.floor(window.innerHeight * (BANNER_HEIGHT_EXTEND / 100));
