@@ -1,6 +1,23 @@
 import { requireAdmin } from "../../_auth.js";
 import { json, readJson } from "../../_utils.js";
 
+const CATEGORY_OPTIONS = new Set([
+  "AI & Công nghệ",
+  "Apple & Thiết bị",
+  "Video & Sáng tạo",
+  "Hạ tầng & Phần cứng",
+  "Robot & Tự động hóa",
+]);
+const normalizeCategory = value => {
+  const name = String(value || "").trim();
+  return CATEGORY_OPTIONS.has(name) ? name : null;
+};
+const normalizeTags = value => [...new Set(
+  (Array.isArray(value) ? value : [])
+    .map(x => String(x).trim())
+    .filter(Boolean)
+)].slice(0, 3);
+
 const slugify = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 100);
 function pubDate(input, fallback) {
@@ -36,8 +53,7 @@ export async function onRequestPost({ request, env }) {
   const status = body?.status === "published" ? "published" : "draft";
   const publishedAt = pubDate(body?.publishedAt, status === "published" ? new Date().toISOString() : null);
   const language = body?.language === "en" ? "en" : "vi";
-  const tags = Array.isArray(body?.tags) ?
-    body.tags.map(x => String(x).trim()).filter(Boolean).slice(0, 20) : [];
+  const tags = normalizeTags(body?.tags);
   const cover = typeof body?.coverR2Key === "string" && /^admin\/[A-Za-z0-9/_\-.]+$/.test(body.coverR2Key)
     ? body.coverR2Key : null;
   try {
@@ -47,7 +63,7 @@ export async function onRequestPost({ request, env }) {
     ).bind(slug,title,String(body?.titleEn||"").slice(0,300),String(body?.excerpt||"").slice(0,1000),
       String(body?.excerptEn||"").slice(0,1000),String(body?.bodyMarkdown||""),
       String(body?.bodyMarkdownEn||""),language,
-      body?.category ? String(body.category).slice(0,80) : null,JSON.stringify(tags),
+      normalizeCategory(body?.category),JSON.stringify(tags),
       cover,status,publishedAt
     ).run();
     return json({ ok: true, id: r.meta?.last_row_id, slug });
