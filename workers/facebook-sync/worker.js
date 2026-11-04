@@ -111,7 +111,7 @@ function classify(url) {
   const s = url.toLowerCase();
   if (/\/reel\/\d{8,}/.test(s)) return "reel";
   if (/\/videos\/\d{8,}/.test(s) || /[?&]v=\d{8,}/.test(s)) return "video";
-  if (/(?:photo\\.php|\\/photo\\/?)/.test(s) && /[?&]fbid=\\d{8,}/.test(s)) return "photo";
+  if (/(?:photo\.php|\/photo\/?)/.test(s) && /[?&]fbid=\d{8,}/.test(s)) return "photo";
   if (/\/posts\//.test(s) || /story_fbid=/.test(s) || /\/story\.php/.test(s) || /permalink\.php/.test(s)) return "post";
   return "unknown";
 }
