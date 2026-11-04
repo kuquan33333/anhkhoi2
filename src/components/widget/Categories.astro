@@ -5,7 +5,7 @@ import WidgetLayout from "./WidgetLayout.astro";
 const { class: className, style } = Astro.props;
 ---
 <WidgetLayout name={i18n(I18nKey.categories)} id="categories" class={className} style={style}>
-  <div data-ak-post-categories class="flex flex-col gap-1 text-sm" aria-label="Chuyên mục bài viết">
+  <div data-ak-post-categories class="flex flex-col items-stretch gap-1 text-left text-sm" aria-label="Chuyên mục bài viết">
     <p class="text-50">Đang tải chuyên mục…</p>
   </div>
 </WidgetLayout>
