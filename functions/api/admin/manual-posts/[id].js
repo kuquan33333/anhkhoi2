@@ -2,11 +2,15 @@ import { requireAdmin } from "../../../_auth.js";
 import { json, readJson } from "../../../_utils.js";
 
 const CATEGORY_OPTIONS = new Set([
-  "AI & Công nghệ",
-  "Apple & Thiết bị",
-  "Video & Sáng tạo",
-  "Hạ tầng & Phần cứng",
-  "Robot & Tự động hóa",
+  "Thời sự & Xã hội",
+  "Thế giới",
+  "Sức khỏe & Y tế",
+  "Khoa học & Thiên văn",
+  "Công nghệ & AI",
+  "Kinh tế & Kinh doanh",
+  "Đời sống & Tạp chí",
+  "Văn hóa & Giải trí",
+  "Thể thao"
 ]);
 const normalizeCategory = value => {
   const name = String(value || "").trim();

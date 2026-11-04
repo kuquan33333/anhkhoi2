@@ -1,6 +1,6 @@
 
 const FB_HOST_SUFFIX = "facebook.com";
-const DEFAULT_LIMIT = 20;
+const DEFAULT_LIMIT = 40;
 
 function isFacebookHost(hostname) {
   return hostname === "facebook.com" || hostname.endsWith("." + FB_HOST_SUFFIX);
@@ -111,7 +111,7 @@ function classify(url) {
   const s = url.toLowerCase();
   if (/\/reel\/\d{8,}/.test(s)) return "reel";
   if (/\/videos\/\d{8,}/.test(s) || /[?&]v=\d{8,}/.test(s)) return "video";
-  if (/photo\.php/.test(s) && /[?&]fbid=\d{8,}/.test(s)) return "photo";
+  if (/(?:photo\.php|\/photo\/?)/.test(s) && /[?&]fbid=\d{8,}/.test(s)) return "photo";
   if (/\/posts\//.test(s) || /story_fbid=/.test(s) || /\/story\.php/.test(s) || /permalink\.php/.test(s)) return "post";
   return "unknown";
 }
@@ -227,30 +227,60 @@ async function browserScrollContent(env, url, maxScrolls = 8) {
 
     let stable = 0;
     let previousCount = 0;
-    const limit = Math.min(Math.max(Number(maxScrolls) || 8, 1), 20);
+    const limit = Math.min(Math.max(Number(maxScrolls) || 8, 1), 30);
     for (let i = 0; i < limit; i++) {
       const evaluated = await sendCdpCommand(socket, 'Runtime.evaluate', {
-        expression: "(() => { const links=[...document.querySelectorAll('a[href]')].filter(a=>/\\/(?:reel|posts|videos)\\/|photo\\.php|story\\.php/.test(a.getAttribute('href')||'')).length; const height=Math.max(document.body?.scrollHeight||0,document.documentElement?.scrollHeight||0); window.scrollTo(0,height); return {reels:links,height}; })()",
+        expression: "(() => { const links=[...document.querySelectorAll('a[href]')].filter(a=>/\\/(?:reel|posts|videos)\\/|photo(?:\\.php|\\/)\\?|story(?:\\.php)?\\?|permalink\\.php/.test(a.getAttribute('href')||'')).length; const height=Math.max(document.body?.scrollHeight||0,document.documentElement?.scrollHeight||0); window.scrollTo(0,height); return {links,height}; })()",
         returnByValue: true,
         awaitPromise: true,
       });
       const value = evaluated?.result?.value || {};
-      const count = Number(value.reels || 0);
+      const count = Number(value.links || 0);
       stable = count <= previousCount ? stable + 1 : 0;
       previousCount = Math.max(previousCount, count);
-      if (stable >= 3) break;
-      await delay(1300);
+      if (stable >= 4) break;
+      await delay(1400);
     }
 
-    await delay(1200);
-    const evaluated = await sendCdpCommand(socket, 'Runtime.evaluate', {
+    await delay(1400);
+    const cardsEval = await sendCdpCommand(socket, 'Runtime.evaluate', {
+      expression: `(() => {
+        const linkRx = /\\/(?:reel|posts|videos)\\/|photo(?:\\.php|\\/)\\?|story(?:\\.php)?\\?|permalink\\.php|story_fbid=/i;
+        const generic = /^(?:Like|Comment|Share|Thích|Bình luận|Chia sẻ|Send|Gửi)$/i;
+        const nodes = [...document.querySelectorAll('[role="article"], [data-pagelet*="FeedUnit"]')];
+        return nodes.map(article => {
+          const links = [...article.querySelectorAll('a[href]')];
+          const a = links.find(node => linkRx.test(node.getAttribute('href') || ''));
+          if (!a) return null;
+          const messageNode = article.querySelector('[data-ad-preview="message"]');
+          const raw = (messageNode?.innerText || article.innerText || '').trim();
+          const text = raw.split('\\n').map(x => x.trim()).filter(x => x && !generic.test(x)).join('\\n').slice(0, 6000);
+          const images = [...article.querySelectorAll('img[src]')]
+            .filter(img => {
+              const src = img.currentSrc || img.src || '';
+              const rect = img.getBoundingClientRect();
+              return /fbcdn\\.net/i.test(src) && rect.width >= 140 && rect.height >= 100;
+            })
+            .map(img => img.currentSrc || img.src)
+            .filter((src, i, arr) => src && arr.indexOf(src) === i)
+            .slice(0, 12);
+          return { href: a.href || a.getAttribute('href'), text, images };
+        }).filter(Boolean);
+      })()`,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    const htmlEval = await sendCdpCommand(socket, 'Runtime.evaluate', {
       expression: 'document.documentElement.outerHTML',
       returnByValue: true,
       awaitPromise: true,
     });
-    const html = evaluated?.result?.value;
+    const html = htmlEval?.result?.value;
     if (typeof html !== 'string' || html.length < 1000) throw new Error('Scrolled browser returned empty HTML');
-    return html;
+    return {
+      html,
+      cards: Array.isArray(cardsEval?.result?.value) ? cardsEval.result.value : [],
+    };
   } finally {
     try { socket.close(); } catch {}
     try { await env.BROWSER.closeSession(connection.sessionId); } catch {}
@@ -268,32 +298,70 @@ function facebookContentId(url) {
   } catch { return null; }
 }
 
+function cleanCandidateText(value) {
+  const text = htmlDecode(String(value || "")).replace(/\r/g, "").trim();
+  if (!text) return "";
+  return text
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line && !/^(?:Like|Comment|Share|Thích|Bình luận|Chia sẻ|Send|Gửi)$/i.test(line))
+    .join("\n")
+    .slice(0, 6000);
+}
+
 function addCandidate(map, raw, baseUrl, text = "", extra = {}) {
   const normalized = normalizeFacebookUrl(raw, baseUrl);
   if (!isCandidate(normalized)) return;
+  const itemType = classify(normalized);
+  const anchorText = cleanCandidateText(text);
+  const imageUrls = [...new Set(
+    (Array.isArray(extra.imageUrls) ? extra.imageUrls : [])
+      .concat(extra.thumbnailUrl || [])
+      .filter(Boolean)
+  )].slice(0, 12);
+
+  // Bare post/photo links are frequently Facebook navigation chrome, not feed items.
+  // Require actual card evidence for non-video content.
+  if ((itemType === "post" || itemType === "photo") && !anchorText && !imageUrls.length) return;
+
+  const facebookId = facebookContentId(normalized);
   const incoming = {
     permalink: normalized,
-    itemType: classify(normalized),
-    facebookId: facebookContentId(normalized),
-    anchorText: String(text || "").trim().slice(0, 1000),
-    thumbnailUrl: extra.thumbnailUrl || null,
+    itemType,
+    facebookId,
+    anchorText,
+    thumbnailUrl: extra.thumbnailUrl || imageUrls[0] || null,
+    imageUrls,
     viewLabel: extra.viewLabel || null,
   };
-  const existing = map.get(normalized);
+  const key = facebookId ? "id:" + facebookId : normalized;
+  const existing = map.get(key);
   if (!existing) {
-    map.set(normalized, incoming);
+    map.set(key, incoming);
     return;
   }
-  map.set(normalized, {
+  map.set(key, {
     ...existing,
     anchorText: existing.anchorText || incoming.anchorText,
     thumbnailUrl: existing.thumbnailUrl || incoming.thumbnailUrl,
+    imageUrls: [...new Set([...(existing.imageUrls || []), ...incoming.imageUrls])].slice(0, 12),
     viewLabel: existing.viewLabel || incoming.viewLabel,
   });
 }
 
-function discoverFromHtml(html, baseUrl) {
-  const seen = new Map();
+function discoverFromDomCards(cards, baseUrl, seen = new Map()) {
+  for (const card of Array.isArray(cards) ? cards : []) {
+    const images = Array.isArray(card?.images) ? card.images : [];
+    addCandidate(seen, card?.href, baseUrl, card?.text || "", {
+      thumbnailUrl: images[0] || null,
+      imageUrls: images,
+    });
+  }
+  return seen;
+}
+
+function discoverFromHtml(html, baseUrl, initialSeen) {
+  const seen = initialSeen || new Map();
   const clean = unescapeFacebookHtml(html);
 
   // Reel grid exposes permalink, thumbnail and public view count in one rendered page.
@@ -309,19 +377,21 @@ function discoverFromHtml(html, baseUrl) {
     const caption = alt && alt.length > 10 && !/^(reel|video|facebook|ảnh đại diện)/i.test(alt) ? alt : "";
     addCandidate(seen, tile[1], baseUrl, caption, {
       thumbnailUrl,
+      imageUrls: thumbnailUrl ? [thumbnailUrl] : [],
       viewLabel: viewMatch ? viewMatch[0].replace(/\s+/g, "") : null,
     });
   }
 
+  // Bare anchors are accepted only for video/reel; addCandidate rejects bare posts/photos.
   for (const tag of clean.match(/<a\b[^>]*>/gi) || []) {
     addCandidate(seen, attr(tag, "href"), baseUrl);
   }
 
-  // Facebook often serializes public permalinks in page data even when a login overlay is rendered.
-  const absolute = /https?:\/\/(?:www\.|m\.)?facebook\.com\/(?:reel\/\d{8,}|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d{8,}|story\.php\?[^"'<>\\\s]*story_fbid=\d{8,}|permalink\.php\?[^"'<>\\\s]*story_fbid=\d{8,})/gi;
+  // Facebook serializes many video permalinks even behind a login overlay.
+  const absolute = /https?:\/\/(?:www\.|m\.)?facebook\.com\/(?:reel\/\d{8,}|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,})/gi;
   for (const match of clean.match(absolute) || []) addCandidate(seen, match, baseUrl);
 
-  const relative = /(?:href=["']?)?(\/(?:reel\/\d{8,}|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}|[^"'<>\\\s]+\/posts\/[^"'<>\\\s]+|photo\.php\?[^"'<>\\\s]*fbid=\d{8,}|story\.php\?[^"'<>\\\s]*story_fbid=\d{8,}|permalink\.php\?[^"'<>\\\s]*story_fbid=\d{8,}))/gi;
+  const relative = /(?:href=["']?)?(\/(?:reel\/\d{8,}|[^"'<>\\\s]+\/videos\/\d{8,}|watch\/?\?[^"'<>\\\s]*v=\d{8,}))/gi;
   let m;
   while ((m = relative.exec(clean)) !== null) addCandidate(seen, m[1], baseUrl);
 
@@ -354,6 +424,37 @@ function detailFromHtml(html, url) {
   };
 }
 
+function isGenericFacebookMetadata(details) {
+  if (!details) return true;
+  const text = [details.title, details.description, details.canonical].filter(Boolean).join(" ").toLowerCase();
+  return (
+    text.includes("khám phá các video phổ biến") ||
+    text.includes("tab video là nơi để cùng thưởng thức") ||
+    /facebook\.com\/watch\/?(?:\s|$)/i.test(String(details.canonical || "")) ||
+    (!details.description && !details.image && /^facebook(?:\s|$)/i.test(String(details.title || "").trim()))
+  );
+}
+
+function mergeCandidateDetails(candidate, details) {
+  const images = [...new Set([
+    ...(Array.isArray(details?.images) ? details.images : []),
+    ...(Array.isArray(candidate?.imageUrls) ? candidate.imageUrls : []),
+    candidate?.thumbnailUrl || null,
+  ].filter(Boolean))].slice(0, 20);
+  return {
+    canonical: details?.canonical || candidate?.permalink || "",
+    title: details?.title || "",
+    description: details?.description || candidate?.anchorText || "",
+    image: details?.image || candidate?.thumbnailUrl || images[0] || "",
+    images,
+    video: details?.video || "",
+    mediaWidth: details?.mediaWidth || null,
+    mediaHeight: details?.mediaHeight || null,
+    publishedAt: details?.publishedAt || null,
+    blocked: !!details?.blocked,
+  };
+}
+
 async function detailHttp(url) {
   const variants = [url];
   const id = facebookContentId(url);
@@ -370,7 +471,7 @@ async function detailHttp(url) {
       if (!response.ok) continue;
       const html = await response.text();
       const parsed = detailFromHtml(html, url);
-      if (parsed.description || parsed.image || parsed.title) return parsed;
+      if (!isGenericFacebookMetadata(parsed) && (parsed.description || parsed.image || parsed.title)) return parsed;
     } catch {
       // Try the next public URL variant.
     }
@@ -388,6 +489,7 @@ async function detail(env, url) {
 
   try {
     const browser = detailFromHtml(await browserContent(env, url), url);
+    if (isGenericFacebookMetadata(browser)) return direct;
     return {
       canonical: browser.canonical || direct?.canonical || url,
       title: browser.title || direct?.title || "",
@@ -482,6 +584,7 @@ async function upsertItem(env, candidate, details, sourceUrl, status) {
     video: details?.video || previousRaw.video || "",
     mediaWidth: details?.mediaWidth || previousRaw.mediaWidth || null,
     mediaHeight: details?.mediaHeight || previousRaw.mediaHeight || null,
+    discoveredImages: Array.isArray(candidate.imageUrls) ? candidate.imageUrls.length : (previousRaw.discoveredImages || 0),
   };
   const rawJson = JSON.stringify(rawObject).slice(0, 50000);
   const detectedEmbedStatus = details?.video ? "detected" : null;
@@ -559,18 +662,20 @@ async function enrichPendingBatch(env, runId, itemStatus) {
       if (!usefulText && !browserFallbackUsed) {
         browserFallbackUsed = true;
         const browserDetails = detailFromHtml(await browserContent(env, row.permalink), row.permalink);
-        details = {
-          canonical: browserDetails.canonical || details?.canonical || row.permalink,
-          title: browserDetails.title || details?.title || "",
-          description: browserDetails.description || details?.description || "",
-          image: browserDetails.image || details?.image || "",
-          video: browserDetails.video || details?.video || "",
-          images: browserDetails.images?.length ? browserDetails.images : (details?.images || []),
-          mediaWidth: browserDetails.mediaWidth || details?.mediaWidth || null,
-          mediaHeight: browserDetails.mediaHeight || details?.mediaHeight || null,
-          publishedAt: browserDetails.publishedAt || details?.publishedAt || null,
-          blocked: browserDetails.blocked && !details,
-        };
+        if (!isGenericFacebookMetadata(browserDetails)) {
+          details = {
+            canonical: browserDetails.canonical || details?.canonical || row.permalink,
+            title: browserDetails.title || details?.title || "",
+            description: browserDetails.description || details?.description || "",
+            image: browserDetails.image || details?.image || "",
+            video: browserDetails.video || details?.video || "",
+            images: browserDetails.images?.length ? browserDetails.images : (details?.images || []),
+            mediaWidth: browserDetails.mediaWidth || details?.mediaWidth || null,
+            mediaHeight: browserDetails.mediaHeight || details?.mediaHeight || null,
+            publishedAt: browserDetails.publishedAt || details?.publishedAt || null,
+            blocked: browserDetails.blocked && !details,
+          };
+        }
       }
       if (!details) {
         errors++;
@@ -611,6 +716,22 @@ async function enrichPendingBatch(env, runId, itemStatus) {
   return { ok:updated>0 || !errors,status,runId,enriched:updated,errors };
 }
 
+function profileSources(profile, reels) {
+  const out = [];
+  if (reels) out.push(reels);
+  if (profile) {
+    out.push(profile);
+    for (const sk of ["posts", "photos", "videos"]) {
+      try {
+        const u = new URL(profile);
+        u.searchParams.set("sk", sk);
+        out.push(u.toString());
+      } catch {}
+    }
+  }
+  return [...new Set(out.filter(Boolean))];
+}
+
 async function sync(env, trigger = "cron") {
   const enabled = (await setting(env, "facebook_sync_enabled", "true")) === "true";
   const pauseUntil = await setting(env, "sync_pause_until", "");
@@ -634,34 +755,33 @@ async function sync(env, trigger = "cron") {
   const autoPublish = (await setting(env, "facebook_auto_publish", "true")) === "true";
   const itemStatus = shadow ? "shadow" : (autoPublish ? "published" : "draft");
   const maxItems = Math.min(Math.max(Number(await setting(env, "crawler_max_items_per_run", String(DEFAULT_LIMIT))) || DEFAULT_LIMIT, 1), 100);
-  const maxScrolls = Math.min(Math.max(Number(await setting(env, "crawler_max_scrolls", "8")) || 8, 1), 20);
+  const maxScrolls = Math.min(Math.max(Number(await setting(env, "crawler_max_scrolls", "12")) || 12, 1), 30);
 
   let sources;
+  const allSources = profileSources(profile, reels);
   if (trigger === "cron") {
     const now = new Date();
     const minute = now.getUTCMinutes();
     const hour = now.getUTCHours();
 
-    // Every :30 discovers Reels. Every third :00 probes public profile tabs;
-    // other :00 runs enrich available captions/media. No login or Meta API.
-    if (minute < 30 && hour % 3 !== 0) {
-      return enrichPendingBatch(env, runId, itemStatus);
-    }
+    // :30 always refreshes Reels. Every 6 hours perform a deep public-profile
+    // scan across Posts/Photos/Videos. Other :00 runs alternate a profile tab
+    // with metadata enrichment. No login cookies and no Meta API.
     if (minute >= 30) {
       sources = [reels].filter(Boolean);
+    } else if (hour % 6 === 0) {
+      sources = allSources;
+    } else if (hour % 2 === 0 && profile) {
+      const tabs = ["posts", "photos", "videos"];
+      const u = new URL(profile);
+      u.searchParams.set("sk", tabs[Math.floor(hour / 2) % tabs.length]);
+      sources = [u.toString()];
     } else {
-      const source = profile ? new URL(profile) : null;
-      if (source) {
-        const tab = Math.floor(hour / 3) % 4;
-        if (tab === 1) source.searchParams.set("sk", "posts");
-        if (tab === 2) source.searchParams.set("sk", "photos");
-        if (tab === 3) source.searchParams.set("sk", "videos");
-      }
-      sources = source ? [source.toString()] : [];
+      return enrichPendingBatch(env, runId, itemStatus);
     }
   } else {
-    // A manual admin sync prioritizes discovery and uses only one Browser Run.
-    sources = [reels].filter(Boolean);
+    // Admin/manual sync is deliberately a deep scan of every public tab.
+    sources = allSources;
   }
 
   let discovered = 0, inserted = 0, updated = 0, errors = 0;
@@ -688,7 +808,18 @@ async function sync(env, trigger = "cron") {
         errors++;
         continue;
       }
-      for (const c of found) if (!all.has(c.permalink)) all.set(c.permalink, { ...c, sourceUrl: source });
+      for (const c of found) {
+        const key = c.facebookId ? "id:" + c.facebookId : c.permalink;
+        const old = all.get(key);
+        if (!old) all.set(key, { ...c, sourceUrl: source });
+        else all.set(key, {
+          ...old,
+          anchorText: old.anchorText || c.anchorText,
+          thumbnailUrl: old.thumbnailUrl || c.thumbnailUrl,
+          imageUrls: [...new Set([...(old.imageUrls || []), ...(c.imageUrls || [])])].slice(0, 12),
+          viewLabel: old.viewLabel || c.viewLabel,
+        });
+      }
     } catch (error) {
       errors++;
       await logError(env, runId, "discover", source, "BROWSER_ERROR", String(error));
@@ -704,9 +835,9 @@ async function sync(env, trigger = "cron") {
   const candidates = discoveredCandidates
     .sort((a, b) => Number(knownIds.has(a.facebookId || "")) - Number(knownIds.has(b.facebookId || "")))
     .slice(0, maxItems);
-  // Enrich only a small number of items per run to stay under Browser Run limits.
-  // Existing shadow items with missing caption/thumbnail are progressively enriched.
-  const detailBudget = 0;
+  // HTTP metadata enrichment is cheap enough for a limited set in discovery.
+  // Browser fallback remains in the separate enrichment queue.
+  const detailBudget = Math.min(12, maxItems);
   let detailed = 0;
 
   for (const candidate of candidates) {
@@ -714,16 +845,28 @@ async function sync(env, trigger = "cron") {
       const exists = await env.DB.prepare(
         "SELECT id,caption,thumbnail_url,published_at FROM facebook_items WHERE source_key=? OR (? IS NOT NULL AND facebook_id=?) LIMIT 1"
       ).bind(candidate.permalink, candidate.facebookId || null, candidate.facebookId || null).first();
-      let details = null;
-      const needsDetails = !exists || !exists.caption || !exists.thumbnail_url;
+      let fetched = null;
+      const candidateHasCardData = !!candidate.anchorText && !!candidate.thumbnailUrl;
+      const needsDetails =
+        candidate.itemType === "post" || candidate.itemType === "photo" ||
+        (!candidateHasCardData && (!exists || !exists.caption || !exists.thumbnail_url));
       if (needsDetails && detailed < detailBudget) {
         detailed++;
         try {
-          details = await detail(env, candidate.permalink);
+          fetched = await detailHttp(candidate.permalink);
         } catch (e) {
           await logError(env, runId, "detail", candidate.permalink, "DETAIL_ERROR", String(e));
           errors++;
         }
+      }
+      const details = mergeCandidateDetails(candidate, fetched);
+      const hasCaption = !!String(details.description || "").trim();
+      const hasImage = !!(details.image || details.images?.length);
+      if ((candidate.itemType === "photo" && !hasImage) ||
+          (candidate.itemType === "post" && !hasCaption && !hasImage)) {
+        await logError(env, runId, "validate", candidate.permalink, "NO_CARD_EVIDENCE",
+          "Skipped a bare Facebook post/photo link without public caption or image evidence.");
+        continue;
       }
       const result = await upsertItem(env, candidate, details, candidate.sourceUrl, itemStatus);
       if (result === "inserted") inserted++; else updated++;

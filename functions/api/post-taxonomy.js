@@ -24,11 +24,15 @@ export async function onRequestGet({ env }) {
     }
   }
   const CATEGORY_ORDER = [
-    "AI & Công nghệ",
-    "Apple & Thiết bị",
-    "Video & Sáng tạo",
-    "Hạ tầng & Phần cứng",
-    "Robot & Tự động hóa",
+      "Thời sự & Xã hội",
+      "Thế giới",
+      "Sức khỏe & Y tế",
+      "Khoa học & Thiên văn",
+      "Công nghệ & AI",
+      "Kinh tế & Kinh doanh",
+      "Đời sống & Tạp chí",
+      "Văn hóa & Giải trí",
+      "Thể thao"
   ];
   const alphabetic = (a, b) => a.name.localeCompare(b.name, "vi");
   const categoryRank = (a, b) => {
@@ -45,7 +49,7 @@ export async function onRequestGet({ env }) {
     .map(([name, count]) => ({ name, count }))
     .filter(item => item.count >= 2)
     .sort(popularity)
-    .slice(0, 8);
+    .slice(0, 10);
 
   return json({
     ok: true,

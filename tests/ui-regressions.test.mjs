@@ -42,14 +42,15 @@ test("unified editorial cards preserve Fuwari cover-on-right layout", () => {
   assert.ok(client.includes('document.addEventListener("swup:page:view"'));
 });
 
-test("Facebook videos play inside the poster with center play button", () => {
+test("Facebook videos render the native player immediately for one-click playback", () => {
   const code = source("src/utils/facebook-feed-runtime.ts");
   const style = source("src/components/FacebookRuntimeFeed.astro");
-  assert.ok(code.includes('"ak-runtime-overlay-play"'));
-  assert.ok(code.includes("shell.replaceChildren(player, close)"));
-  assert.ok(code.includes('embedUrl.searchParams.set("autoplay", "true")'));
-  assert.ok(code.includes("akResetVideo(activeVideo)"));
-  assert.ok(!code.includes("card.append(region, player)"));
-  assert.ok(style.includes(".ak-runtime-overlay-play{position:absolute;inset:0"));
+  assert.ok(code.includes('"https://www.facebook.com/plugins/video.php"'));
+  assert.ok(code.includes('embedUrl.searchParams.set("autoplay", "false")'));
+  assert.ok(code.includes('shell.append(player)'));
+  assert.ok(!code.includes('"ak-runtime-overlay-play"'));
+  assert.ok(!code.includes("akPlayVideo"));
+  assert.ok(!code.includes("akResetVideo"));
+  assert.ok(!style.includes(".ak-runtime-overlay-play"));
   assert.ok(style.includes(".ak-runtime-video-iframe{position:absolute;inset:0"));
 });

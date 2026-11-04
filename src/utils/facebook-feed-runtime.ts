@@ -27,9 +27,6 @@ function akDecodeFacebookCaption(input?: string | null): string {
     });
 }
 
-const posters = new WeakMap<HTMLElement, Node[]>();
-let activeVideo: HTMLElement | null = null;
-
 function akCreate<K extends keyof HTMLElementTagNameMap>(
   tag: K, cls = "", text?: string
 ): HTMLElementTagNameMap[K] {
@@ -77,60 +74,41 @@ function akFbImage(key?: string | null, url?: string | null, alt?: string) {
   });
   return image;
 }
-function akResetVideo(shell: HTMLElement) {
-  const original = posters.get(shell);
-  if (original?.length) shell.replaceChildren(...original);
-  shell.removeAttribute("data-playing");
-  posters.delete(shell);
-  if (activeVideo === shell) activeVideo = null;
-}
-function akPlayVideo(shell: HTMLElement, item: AkFbItem) {
-  if (!akSafeFacebookUrl(item.permalink) || shell.dataset.playing === "true") return;
-  if (activeVideo && activeVideo !== shell) akResetVideo(activeVideo);
-  activeVideo = shell;
-  posters.set(shell, Array.from(shell.childNodes));
-  const embedUrl = new URL("https://www.facebook.com/plugins/video.php");
-  embedUrl.searchParams.set("href", item.permalink || "");
-  embedUrl.searchParams.set("show_text", "false");
-  embedUrl.searchParams.set("autoplay", "true");
-  embedUrl.searchParams.set("width", String(Math.max(220, Math.round(shell.getBoundingClientRect().width))));
-  const player = akCreate("iframe", "ak-runtime-video-iframe");
-  player.title = "Phát video Facebook Anh Khôi";
-  player.src = embedUrl.toString();
-  player.loading = "eager";
-  player.allow = "autoplay; fullscreen; encrypted-media; picture-in-picture";
-  player.setAttribute("allowfullscreen", "");
-  player.referrerPolicy = "strict-origin-when-cross-origin";
-  const close = akCreate("button", "ak-runtime-player-close", "✕ Đóng");
-  close.type = "button";
-  close.setAttribute("aria-label", "Đóng trình phát video Facebook");
-  close.addEventListener("click", event => {
-    event.stopPropagation();
-    akResetVideo(shell);
-  });
-  shell.dataset.playing = "true";
-  shell.replaceChildren(player, close);
-}
 function akVideoShell(item: AkFbItem): HTMLElement {
   const shell = akCreate("div", "ak-runtime-player-shell");
   if (item.item_type === "reel") shell.classList.add("is-reel");
   shell.style.aspectRatio = akFbAspect(item);
-  const poster = akCreate("div", "ak-runtime-video-poster");
-  const img = akFbImage(item.r2_thumbnail_key, item.thumbnail_url, akDecodeFacebookCaption(item.caption) || "Video Facebook");
-  img.loading = "lazy";
-  poster.append(img);
-  if (akSafeFacebookUrl(item.permalink)) {
-    const play = akCreate("button", "ak-runtime-overlay-play");
-    play.type = "button";
-    play.setAttribute("aria-label", "Phát video tại đây");
-    play.append(akCreate("span", "ak-runtime-play-icon", "▶"),
-      akCreate("span", "ak-runtime-play-caption", "Chạm để phát"));
-    play.addEventListener("click", () => akPlayVideo(shell, item));
-    poster.append(play);
+
+  if (!akSafeFacebookUrl(item.permalink)) {
+    const poster = akCreate("div", "ak-runtime-video-poster");
+    poster.append(akFbImage(
+      item.r2_thumbnail_key,
+      item.thumbnail_url,
+      akDecodeFacebookCaption(item.caption) || "Video Facebook"
+    ));
+    shell.append(poster);
+    return shell;
   }
-  shell.append(poster);
+
+  // Render Facebook's real player immediately. The first visible Play control
+  // belongs to Facebook itself, so the viewer only needs one click to play.
+  const embedUrl = new URL("https://www.facebook.com/plugins/video.php");
+  embedUrl.searchParams.set("href", item.permalink || "");
+  embedUrl.searchParams.set("show_text", "false");
+  embedUrl.searchParams.set("autoplay", "false");
+  embedUrl.searchParams.set("width", item.item_type === "reel" ? "380" : "640");
+
+  const player = akCreate("iframe", "ak-runtime-video-iframe");
+  player.title = "Video Facebook Anh Khôi";
+  player.src = embedUrl.toString();
+  player.loading = "lazy";
+  player.allow = "autoplay; fullscreen; encrypted-media; picture-in-picture";
+  player.setAttribute("allowfullscreen", "");
+  player.referrerPolicy = "strict-origin-when-cross-origin";
+  shell.append(player);
   return shell;
 }
+
 function akTogglePostEmbed(card: HTMLElement, item: AkFbItem, button: HTMLButtonElement) {
   const previous = card.querySelector("[data-ak-post-embed]");
   if (previous) {
@@ -268,7 +246,4 @@ function akStartFacebookFeeds() {
 document.addEventListener("DOMContentLoaded", akStartFacebookFeeds);
 document.addEventListener("swup:page:view", akStartFacebookFeeds);
 document.addEventListener("astro:page-load", akStartFacebookFeeds);
-document.addEventListener("swup:visit:start", () => {
-  if (activeVideo) akResetVideo(activeVideo);
-});
 if (document.readyState !== "loading") akStartFacebookFeeds();

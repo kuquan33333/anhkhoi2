@@ -12,7 +12,7 @@ const htmlDecode = new Function(worker.slice(start, end) + "return htmlDecode;")
 
 const frontend = read("src/utils/facebook-feed-runtime.ts");
 const frontStart = frontend.indexOf("function akDecodeFacebookCaption(");
-const frontEnd = frontend.indexOf("const posters =", frontStart);
+const frontEnd = frontend.indexOf("function akCreate", frontStart);
 assert.ok(frontStart >= 0 && frontEnd > frontStart);
 const transpiled = ts.transpileModule(frontend.slice(frontStart, frontEnd), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }
