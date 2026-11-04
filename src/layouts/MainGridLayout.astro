@@ -63,7 +63,7 @@ const mainPanelTop = siteConfig.banner.enable
 <div class="absolute w-full z-30 pointer-events-none" style={`top: ${mainPanelTop}`}>
     <!-- The pointer-events-none here prevent blocking the click event of the TOC -->
     <div class="relative max-w-[var(--page-width)] mx-auto pointer-events-auto">
-        <div id="main-grid" class="transition duration-700 w-full left-0 right-0 grid grid-cols-[17.5rem_auto] grid-rows-[auto_1fr_auto] lg:grid-rows-[auto]
+        <div id="main-grid" style={`--surface-overlap:${MAIN_PANEL_OVERLAPS_BANNER_HEIGHT}rem`} class="relative isolate transition duration-700 w-full left-0 right-0 grid grid-cols-[17.5rem_auto] grid-rows-[auto_1fr_auto] lg:grid-rows-[auto]
     mx-auto gap-4 px-0 md:px-4"
         >
             <!-- Banner image credit -->
@@ -123,3 +123,32 @@ const mainPanelTop = siteConfig.banner.enable
     </div>
 </div>
 </Layout>
+
+<style is:global>
+/*
+ * Fuwari's banner overlaps the cards by MAIN_PANEL_OVERLAPS_BANNER_HEIGHT.
+ * Cover the transparent canvas under the cards AFTER that overlap so the
+ * theme surface cannot expose an old dark HTML/Swup background between cards.
+ * The banner itself remains unchanged and fully visible above this boundary.
+ */
+#main-grid::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    left: 50%;
+    width: 100vw;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-50%);
+    background-color: var(--page-bg);
+    transition: background-color 200ms ease;
+}
+.enable-banner #main-grid::before {
+    top: var(--surface-overlap);
+}
+@media (prefers-reduced-motion: reduce) {
+    #main-grid::before { transition: none; }
+}
+</style>
+
