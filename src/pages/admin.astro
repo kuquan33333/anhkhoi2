@@ -22,7 +22,7 @@ const title = "Admin · Anh Khôi AI Media";
     table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px;border-bottom:1px solid #ffffff12;vertical-align:top}th{color:#83a6ce}.scroll{overflow:auto;max-height:470px}
     .ok{color:#65d79d}.warn{color:#ffcf66}.bad{color:#ff7c91}.hidden{display:none!important}.switch{display:flex;gap:8px;align-items:center;margin:7px 0}.switch input{width:auto}
     h2{font-size:17px;margin:0 0 12px}h3{font-size:14px;margin:16px 0 6px}.toolbar{position:sticky;top:0;z-index:5;background:#07101fe8;backdrop-filter:blur(15px);padding:12px 0;margin-bottom:14px}
-    .media-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.media-item{border:1px solid #ffffff14;border-radius:12px;overflow:hidden;background:#07111f}.media-item img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.media-actions{display:flex;gap:6px;flex-wrap:wrap;padding:8px}.media-actions button{font-size:11px;padding:6px 8px}.post-row{padding:9px 0;border-bottom:1px solid #ffffff12}.post-row:last-child{border-bottom:0}.cover-preview{width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-top:8px;background:#07111f}.mini{font-size:12px;padding:7px 9px}.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.stat{background:#07111f;border:1px solid #ffffff12;border-radius:12px;padding:12px}.stat strong{display:block;font-size:22px}.stat span{font-size:11px;color:#8da1bb}
+    .media-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.media-item{border:1px solid #ffffff14;border-radius:12px;overflow:hidden;background:#07111f}.media-item img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.media-actions{display:flex;gap:6px;flex-wrap:wrap;padding:8px}.media-actions button{font-size:11px;padding:6px 8px}.post-row{padding:9px 0;border-bottom:1px solid #ffffff12}.post-row:last-child{border-bottom:0}.cover-preview{width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-top:8px;background:#07111f}.mini{font-size:12px;padding:7px 9px}.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.stat{background:#07111f;border:1px solid #ffffff12;border-radius:12px;padding:12px}.stat strong{display:block;font-size:22px}.stat span{font-size:11px;color:#8da1bb}.editorial-warnings{margin-top:12px;padding:11px 12px;border:1px solid #ffcf6647;background:#6a4a161f;border-radius:10px}.editorial-warnings ul{margin:0;padding-left:18px}.editorial-warnings li{margin:4px 0;color:#ffd98a}.editorial-warnings .bad{color:#ff9dad}.editorial-warnings .review{color:#8dc5ff}
     @media(max-width:760px){.wrap{padding:14px}.col6{grid-column:span 12}.card{padding:14px}th:nth-child(3),td:nth-child(3){display:none}.media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
   </style>
 </head>
@@ -33,7 +33,7 @@ const title = "Admin · Anh Khôi AI Media";
   <section id="loginView" class="card login">
     <h2>Đăng nhập quản trị</h2>
     <form id="loginForm">
-      <label>Tài khoản</label><input id="username" autocomplete="username" value="kuquan96" />
+      <label>Tài khoản</label><input id="username" autocomplete="username" />
       <label>Mật khẩu</label><input id="password" type="password" autocomplete="current-password" />
       <div class="row" style="margin-top:14px"><button class="btn">Đăng nhập</button><span id="loginMsg" class="muted"></span></div>
     </form>
@@ -91,21 +91,18 @@ const title = "Admin · Anh Khôi AI Media";
           <div class="grid" style="gap:10px">
             <div class="col6"><label>Chuyên mục</label><select id="manualCategory">
               <option value="">Chọn chuyên mục</option>
-              <option value="Thời sự & Xã hội">Thời sự & Xã hội</option>
-              <option value="Thế giới">Thế giới</option>
-              <option value="Quân sự & Quốc phòng">Quân sự & Quốc phòng</option>
-              <option value="Pháp luật & An ninh">Pháp luật & An ninh</option>
-              <option value="Sức khỏe & Y tế">Sức khỏe & Y tế</option>
-              <option value="Giáo dục">Giáo dục</option>
-              <option value="Khoa học & Thiên văn">Khoa học & Thiên văn</option>
               <option value="Công nghệ & AI">Công nghệ & AI</option>
-              <option value="Kinh tế & Kinh doanh">Kinh tế & Kinh doanh</option>
-              <option value="Đời sống & Tạp chí">Đời sống & Tạp chí</option>
-              <option value="Văn hóa & Giải trí">Văn hóa & Giải trí</option>
+              <option value="Khoa học & Khám phá">Khoa học & Khám phá</option>
+              <option value="Quân sự & Công nghệ quốc phòng">Quân sự & Công nghệ quốc phòng</option>
+              <option value="Du lịch & Trải nghiệm">Du lịch & Trải nghiệm</option>
+              <option value="Văn hóa & Sáng tạo">Văn hóa & Sáng tạo</option>
+              <option value="Học tập & Kỹ năng số">Học tập & Kỹ năng số</option>
+              <option value="Sức khỏe & Đời sống">Sức khỏe & Đời sống</option>
               <option value="Thể thao">Thể thao</option>
+              <option value="Góc nhìn & Phân tích">Góc nhìn & Phân tích</option>
             </select></div>
-            <div class="col6"><label>Chủ đề (tối đa 3, cách nhau bằng dấu phẩy)</label><input id="manualTags" placeholder="AI, Video AI, Sáng tạo" /></div>
-          <p class="muted" style="font-size:12px;margin:4px 0 10px">Ưu tiên chủ đề dùng lặp lại giữa nhiều bài. Sidebar chỉ hiện các chủ đề được dùng ở ít nhất 2 bài và tối đa 10 chủ đề để không bị rối.</p>
+            <div class="col6"><label>Chủ đề (tối đa 5, cách nhau bằng dấu phẩy)</label><input id="manualTags" placeholder="AI, NASA, Thiên văn, An toàn số" /></div>
+          <p class="muted" style="font-size:12px;margin:4px 0 10px">Ưu tiên chủ đề dùng lại giữa nhiều bài. Sidebar chỉ hiện các chủ đề được dùng ở ít nhất 2 bài và tối đa 15 chủ đề để tránh tag rác.</p>
           </div>
           <label>Ngôn ngữ</label><select id="manualLanguage"><option value="vi">Tiếng Việt</option><option value="en">English</option></select>
           <label>Mô tả ngắn (Tiếng Việt)</label><input id="manualExcerpt" />
@@ -114,12 +111,30 @@ const title = "Admin · Anh Khôi AI Media";
           <img id="manualCoverPreview" class="cover-preview hidden" alt="Ảnh bìa" />
           <label>Nội dung Markdown (Tiếng Việt)</label><textarea id="manualBody" style="min-height:260px"></textarea>
           <label>Nội dung Markdown tiếng Anh (không bắt buộc)</label><textarea id="manualBodyEn" style="min-height:180px"></textarea>
-          <label>Ngày xuất bản (có thể chỉnh sửa)</label><input id="manualPublishedAt" type="date" />
-          <p class="muted" style="font-size:12px;margin:6px 0">Bài mẫu và bài mới đều nằm trong cùng danh sách. Để trống ngày đăng khi tạo bài mới sẽ dùng ngày hiện tại.</p>
-          <label>Trạng thái</label><select id="manualStatus"><option value="draft">Nháp</option><option value="published">Xuất bản</option></select>
-          <div class="row" style="margin-top:12px"><button class="btn">Lưu bài</button><button id="deletePostBtn" class="btn danger hidden" type="button">Xóa bài</button><span id="manualMsg" class="muted"></span></div>
+
+          <label>Nguồn tham khảo — mỗi dòng: Tên nguồn | Tiêu đề/tài liệu | URL | loại</label>
+          <textarea id="manualSources" style="min-height:120px" placeholder="NASA | November skywatching guide | https://... | official"></textarea>
+          <p class="muted" style="font-size:12px;margin:6px 0">Loại nguồn: official, research, press, industry hoặc reference. URL được lưu nội bộ để kiểm chứng và chỉ hiển thị dưới dạng link gọn.</p>
+
+          <label>Ảnh minh họa có cấu trúc — mỗi dòng: R2 key | alt | caption | credit</label>
+          <textarea id="manualMedia" style="min-height:100px" placeholder="admin/.../image.webp | Mô tả ảnh | Chú thích | NASA"></textarea>
+
+          <div class="grid" style="gap:10px">
+            <div class="col6"><label>Editorial action</label><select id="manualEditorialAction">
+              <option value="KEEP">KEEP — giữ</option>
+              <option value="REWRITE">REWRITE — viết lại</option>
+              <option value="MOVE">MOVE — chuyển chuyên mục</option>
+              <option value="ARCHIVE">ARCHIVE — lưu trữ</option>
+              <option value="REMOVE_DUPLICATE">REMOVE_DUPLICATE — bài trùng</option>
+            </select></div>
+            <div class="col6"><label>Ngày xuất bản</label><input id="manualPublishedAt" type="date" /></div>
+          </div>
+          <label>Ghi chú biên tập nội bộ</label><textarea id="manualEditorialNotes" style="min-height:80px" placeholder="Điểm cần kiểm chứng, lý do archive, hướng viết lại..."></textarea>
+          <label>Trạng thái</label><select id="manualStatus"><option value="draft">Nháp</option><option value="published">Xuất bản</option><option value="archived">Lưu trữ</option></select>
+          <div id="manualWarnings" class="editorial-warnings hidden" role="status"></div>
+          <div class="row" style="margin-top:12px"><button class="btn">Lưu bài</button><button id="deletePostBtn" class="btn danger hidden" type="button">Lưu trữ bài</button><span id="manualMsg" class="muted"></span></div>
         </form>
-        <h3>Tất cả bài viết — sửa, ẩn, xuất bản hoặc xóa</h3><div id="manualList" class="muted"></div>
+        <h3>Tất cả bài viết — sửa, lưu trữ hoặc xuất bản</h3><div id="manualList" class="muted"></div>
       </section>
 
       <section class="card col12">
@@ -189,6 +204,37 @@ async function api(url, options={}) {
 function showLogin(){ $("#loginView").classList.remove("hidden"); $("#dashboard").classList.add("hidden"); }
 function showDash(){ $("#loginView").classList.add("hidden"); $("#dashboard").classList.remove("hidden"); }
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));}
+function parsePipeRows(value,kind){
+  return String(value||"").split(/\n+/).map(x=>x.trim()).filter(Boolean).map(line=>{
+    const p=line.split("|").map(x=>x.trim());
+    return kind==="source"
+      ? {name:p[0]||"",title:p[1]||"",url:p[2]||"",type:p[3]||"reference"}
+      : {key:p[0]||"",alt:p[1]||"",caption:p[2]||"",credit:p[3]||""};
+  });
+}
+function formatPipeRows(items,kind){
+  return (Array.isArray(items)?items:[]).map(x=>kind==="source"
+    ? [x.name,x.title,x.url,x.type].map(v=>String(v||"").trim()).join(" | ")
+    : [x.key,x.alt,x.caption,x.credit].map(v=>String(v||"").trim()).join(" | ")
+  ).join("\n");
+}
+function renderWarnings(items){
+  const box=$("#manualWarnings"); const list=Array.isArray(items)?items:[];
+  if(!list.length){box.innerHTML="";box.classList.add("hidden");return}
+  box.innerHTML="<b>Kiểm tra biên tập</b><ul>"+list.map(w=>'<li class="'+esc(w.severity||"warn")+'">'+esc(w.message||w.code||"Cần kiểm tra")+"</li>").join("")+"</ul>";
+  box.classList.remove("hidden");
+}
+async function saveWithEditorialOverride(url,method,payload){
+  let result=await api(url,{method,body:JSON.stringify(payload)});
+  if(result.r.status===409&&result.data?.error==="editorial_review_required"){
+    renderWarnings(result.data.warnings);
+    if(!confirm("Bài còn cảnh báo biên tập. Bạn đã kiểm tra và vẫn muốn xuất bản?")) return result;
+    payload={...payload,overrideWarnings:true};
+    result=await api(url,{method,body:JSON.stringify(payload)});
+  }
+  if(result.data?.warnings) renderWarnings(result.data.warnings);
+  return result;
+}
 async function init(){
   const {r,data}=await api("/api/admin/me");
   if(!r.ok){showLogin();return}
