@@ -42,7 +42,8 @@ function stripLegacySources(value: string) {
 
 function safeSources(value: unknown, fallback: SourceItem[]) {
   if (!Array.isArray(value) || !value.length) return fallback;
-  const seen = new Set<string>(), out: SourceItem[] = [];
+  const seen = new Set<string>();
+  const out: SourceItem[] = [];
   for (const raw of value) {
     if (!raw || typeof raw !== "object") continue;
     const item = raw as SourceItem;
