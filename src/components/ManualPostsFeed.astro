@@ -5,6 +5,7 @@ interface Props {
   sectionTitle?: string;
   sectionDescription?: string;
   pageSize?: number;
+  featured?: boolean;
 }
 const {
   mode = "home",
@@ -12,6 +13,7 @@ const {
   sectionTitle = "",
   sectionDescription = "",
   pageSize = mode === "home" ? 4 : 6,
+  featured = false,
 } = Astro.props;
 const showHeader = mode !== "home" || !!sectionTitle;
 ---
@@ -21,6 +23,7 @@ const showHeader = mode !== "home" || !!sectionTitle;
   data-mode={mode}
   data-category={category}
   data-page-size={pageSize}
+  data-featured={featured ? "true" : "false"}
   aria-label={sectionTitle || "Danh sách bài viết"}
 >
   {showHeader && (
@@ -55,9 +58,9 @@ const showHeader = mode !== "home" || !!sectionTitle;
   <p class="ak-manual-message hidden card-base px-6 py-5 text-75" data-manual-status role="status"></p>
 
   <nav class="ak-manual-pagination" data-manual-pagination hidden aria-label="Phân trang bài viết">
-    <a class="ak-page-nav ak-page-prev" data-manual-prev aria-label="Trang trước">‹</a>
+    <a class="ak-page-nav ak-page-prev" data-manual-prev aria-label="Trang trước">‹ <span>Trước</span></a>
     <div class="ak-page-numbers" data-manual-pages></div>
-    <a class="ak-page-nav ak-page-next" data-manual-next aria-label="Trang sau">›</a>
+    <a class="ak-page-nav ak-page-next" data-manual-next aria-label="Trang sau"><span>Sau</span> ›</a>
   </nav>
 </section>
 
@@ -97,14 +100,16 @@ a.ak-editorial-meta-part:hover{color:var(--primary)}
 .ak-page-link:active,.ak-page-nav:active{transform:scale(.88)}
 .ak-page-link.is-current{background:var(--primary);color:white;pointer-events:none}
 :global(.dark) .ak-page-link.is-current{color:rgba(0,0,0,.72)}
-.ak-page-nav{background:var(--card-bg);color:var(--primary);font-size:1.65rem;line-height:1}
+.ak-page-nav{background:var(--card-bg);color:var(--primary);font-size:.82rem;line-height:1;width:auto;min-width:2.75rem;padding:0 .75rem;gap:.35rem}
 .ak-page-nav.is-disabled{opacity:.28;pointer-events:none}
 .ak-page-ellipsis{display:inline-flex;align-items:center;justify-content:center;width:1.7rem;height:2.75rem;color:var(--text-30);font-weight:800}
 .ak-manual-message{font-size:.94rem}
 .ak-manual-feed[data-mode="home"]{margin-bottom:1.2rem}
 .ak-manual-feed[data-mode="home"] .ak-feed-heading{padding-bottom:1rem}
 @media(max-width:480px){
-  .ak-page-link,.ak-page-nav{width:2.4rem;height:2.4rem}
+  .ak-page-link{width:2.4rem;height:2.4rem}
+  .ak-page-nav{height:2.4rem;padding:0 .55rem}
+  .ak-page-nav span{display:none}
   .ak-page-ellipsis{width:1.15rem;height:2.4rem}
   .ak-manual-pagination{gap:.4rem}
   .ak-editorial-main{padding:1.2rem}
@@ -117,7 +122,9 @@ a.ak-editorial-meta-part:hover{color:var(--primary)}
   .ak-editorial-card.has-cover .ak-editorial-main{width:calc(100% - 28% - 1.2rem)}
   .ak-editorial-title::before{content:"";position:absolute;left:-1.05rem;top:.45rem;width:4px;height:1.15rem;background:var(--primary);border-radius:4px}
   .ak-editorial-cover{position:absolute;top:1rem;right:1rem;bottom:1rem;width:28%;margin:0;min-height:0;aspect-ratio:auto}
-  .ak-manual-feed[data-mode="category"] .ak-editorial-card:first-child{min-height:220px}
-  .ak-manual-feed[data-mode="category"] .ak-editorial-card:first-child .ak-editorial-title{font-size:clamp(1.45rem,2.5vw,2rem)}
+  .ak-manual-feed[data-mode="category"] .ak-editorial-card:first-child,
+  .ak-manual-feed[data-featured="true"] .ak-editorial-card:first-child{min-height:220px}
+  .ak-manual-feed[data-mode="category"] .ak-editorial-card:first-child .ak-editorial-title,
+  .ak-manual-feed[data-featured="true"] .ak-editorial-card:first-child .ak-editorial-title{font-size:clamp(1.45rem,2.5vw,2rem)}
 }
 </style>
