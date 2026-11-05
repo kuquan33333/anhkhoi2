@@ -18,7 +18,7 @@ export async function onRequestGet({ request, env }) {
   const search = (u.searchParams.get("search") || "").trim().slice(0, 100);
   const uncategorized = u.searchParams.get("uncategorized") === "true";
 
-  const conditions = ["status='published'"];
+  const conditions = ["status='published'", "COALESCE(editorial_action,'KEEP') NOT IN ('ARCHIVE','REMOVE_DUPLICATE')"];
   const params = [];
   if (category) {
     conditions.push("category = ? COLLATE NOCASE");
