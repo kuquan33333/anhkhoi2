@@ -1,2 +1,2 @@
-editorial-reposition-20261105
-validated-base=94b29b65ddf09ec6b68125d26b0afd48ec37ffa2
+editorial-reposition-20261105-hotfix
+validated-base=3d1ff3363e2f61aeb1fcd13511a9b600b61fb46f
