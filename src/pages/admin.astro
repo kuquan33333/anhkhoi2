@@ -281,29 +281,31 @@ async function loadManual(){
     const date=p.published_at?String(p.published_at).slice(0,10):"Chưa xuất bản";
     const tags=(p.tags||[]).map(t=>"#"+t).join(" / ");
     const open=p.status==="published"?'<a class="btn alt mini" target="_blank" rel="noopener" href="/bai-viet/?slug='+encodeURIComponent(p.slug)+'">Xem</a>':"";
+    const statusLabel=p.status==="published"?"Đã xuất bản":p.status==="archived"?"Lưu trữ":"Bản nháp";
     return '<div class="post-row row between"><div style="flex:1;min-width:200px"><b>'+esc(p.title)+'</b><br>'+
-      '<span class="pill">'+esc(p.status==="published"?"Đã xuất bản":"Bản nháp")+'</span> '+
+      '<span class="pill">'+esc(statusLabel)+'</span> <span class="pill">'+esc(p.editorial_action||"KEEP")+'</span> '+
+      (p.review_required?'<span class="pill warn">Cần review</span> ':"")+
       '<span class="muted">'+esc(date)+' · '+esc(p.category||"Chưa phân loại")+'</span><br>'+
-      '<span class="muted">'+esc(tags||"Chưa có tag")+'</span></div>'+
+      '<span class="muted">'+esc(tags||"Chưa có tag")+' · '+esc(p.sourceCount||0)+' nguồn · '+esc(p.mediaCount||0)+' ảnh nội dung</span></div>'+
       '<div class="row"><button class="btn alt mini" type="button" data-edit-post="'+p.id+'">Sửa</button>'+
-      open+'<button class="btn alt mini" type="button" data-toggle-post="'+p.id+'" data-next-status="'+(p.status==="published"?"draft":"published")+'">'+(p.status==="published"?"Ẩn":"Xuất bản")+'</button>'+
-      '<button class="btn danger mini" type="button" data-remove-post="'+p.id+'">Xóa</button></div></div>';
+      open+(p.status!=="archived"?'<button class="btn alt mini" type="button" data-toggle-post="'+p.id+'" data-next-status="'+(p.status==="published"?"draft":"published")+'">'+(p.status==="published"?"Ẩn":"Xuất bản")+'</button>':"")+
+      '<button class="btn danger mini" type="button" data-remove-post="'+p.id+'">Lưu trữ</button></div></div>';
   }).join("")||"Chưa có bài viết.";
   document.querySelectorAll("[data-edit-post]").forEach(el=>el.addEventListener("click",()=>editPost(el.dataset.editPost)));
   document.querySelectorAll("[data-toggle-post]").forEach(el=>el.addEventListener("click",async()=>{
     const id=el.dataset.togglePost,next=el.dataset.nextStatus;
     const p=posts.find(x=>String(x.id)===id);if(!p)return;
     if(next==="draft"&&!confirm("Ẩn bài \""+p.title+"\" khỏi website? Bạn có thể xuất bản lại bất cứ lúc nào."))return;
-    const {data:r}=await api("/api/admin/manual-posts/"+id,{method:"PATCH",body:JSON.stringify({status:next})});
+    const {data:r}=await saveWithEditorialOverride("/api/admin/manual-posts/"+id,"PATCH",{status:next});
     $("#manualMsg").textContent=r.ok?(next==="draft"?"Đã ẩn bài":"Đã xuất bản bài"):("Lỗi: "+(r.error||""));
     if(r.ok)await loadManual();
   }));
   document.querySelectorAll("[data-remove-post]").forEach(el=>el.addEventListener("click",async()=>{
     const id=el.dataset.removePost;
     const p=posts.find(x=>String(x.id)===id);if(!p)return;
-    if(!confirm("Xóa vĩnh viễn bài \""+p.title+"\"? Hành động này không hoàn tác được."))return;
+    if(!confirm("Lưu trữ bài \""+p.title+"\"? Bài sẽ ẩn khỏi website công khai nhưng dữ liệu vẫn được giữ."))return;
     const {data:r}=await api("/api/admin/manual-posts/"+id,{method:"DELETE"});
-    $("#manualMsg").textContent=r.ok?"Đã xóa bài":("Lỗi: "+(r.error||""));
+    $("#manualMsg").textContent=r.ok?"Đã lưu trữ bài":("Lỗi: "+(r.error||""));
     if(r.ok){if($("#manualId").value===id)resetManual();await loadManual();}
   }));
 }
@@ -312,14 +314,16 @@ async function editPost(id){
   const p=data.post;
   $("#manualId").value=p.id;$("#manualTitle").value=p.title||"";$("#manualTitleEn").value=p.title_en||"";$("#manualSlug").value=p.slug||"";
   $("#manualExcerpt").value=p.excerpt||"";$("#manualExcerptEn").value=p.excerpt_en||"";$("#manualCategory").value=p.category||"";
-  $("#manualTags").value=(p.tags||[]).join(", ");$("#manualLanguage").value=p.language||"vi";$("#manualBody").value=p.body_markdown||"";$("#manualBodyEn").value=p.body_markdown_en||"";$("#manualPublishedAt").value=p.published_at?String(p.published_at).slice(0,10):"";
-  $("#manualStatus").value=p.status||"draft";setCover(p.cover_r2_key||"");
+  $("#manualTags").value=(p.tags||[]).join(", ");$("#manualLanguage").value=p.language||"vi";$("#manualBody").value=p.body_markdown||"";$("#manualBodyEn").value=p.body_markdown_en||"";
+  $("#manualSources").value=formatPipeRows(p.sources,"source");$("#manualMedia").value=formatPipeRows(p.media,"media");
+  $("#manualEditorialAction").value=p.editorial_action||"KEEP";$("#manualEditorialNotes").value=p.editorial_notes||"";
+  $("#manualPublishedAt").value=p.published_at?String(p.published_at).slice(0,10):"";$("#manualStatus").value=p.status||"draft";setCover(p.cover_r2_key||"");renderWarnings(p.warnings||[]);
   $("#manualHeading").textContent="Sửa bài viết";$("#deletePostBtn").classList.remove("hidden");
   $("#manualMsg").textContent="Đang sửa #"+p.id;$("#manualForm").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function resetManual(){
   $("#manualForm").reset();$("#manualId").value="";$("#manualHeading").textContent="Quản lý tất cả bài viết";
-  $("#deletePostBtn").classList.add("hidden");$("#manualMsg").textContent="";setCover("");
+  $("#deletePostBtn").classList.add("hidden");$("#manualMsg").textContent="";renderWarnings([]);setCover("");
 }
 function setCover(key){
   $("#manualCover").value=key||"";const img=$("#manualCoverPreview");
@@ -375,13 +379,13 @@ $("#saveSettings").addEventListener("click",async()=>{const settings={};document
 $("#passwordForm").addEventListener("submit",async e=>{e.preventDefault();const {data}=await api("/api/admin/password",{method:"POST",body:JSON.stringify({currentPassword:$("#currentPassword").value,newPassword:$("#newPassword").value})});$("#passwordMsg").textContent=data.ok?"Đã đổi mật khẩu":(data.error||"Lỗi");});
 $("#manualForm").addEventListener("submit",async e=>{
   e.preventDefault();const id=$("#manualId").value.trim();
-  const payload={title:$("#manualTitle").value,titleEn:$("#manualTitleEn").value,slug:$("#manualSlug").value,excerpt:$("#manualExcerpt").value,excerptEn:$("#manualExcerptEn").value,category:$("#manualCategory").value,language:$("#manualLanguage").value,tags:$("#manualTags").value.split(",").map(x=>x.trim()).filter(Boolean),coverR2Key:$("#manualCover").value,bodyMarkdown:$("#manualBody").value,bodyMarkdownEn:$("#manualBodyEn").value,publishedAt:$("#manualPublishedAt").value,status:$("#manualStatus").value};
-  const {data}=await api(id?("/api/admin/manual-posts/"+id):"/api/admin/manual-posts",{method:id?"PATCH":"POST",body:JSON.stringify(payload)});
+  const payload={title:$("#manualTitle").value,titleEn:$("#manualTitleEn").value,slug:$("#manualSlug").value,excerpt:$("#manualExcerpt").value,excerptEn:$("#manualExcerptEn").value,category:$("#manualCategory").value,language:$("#manualLanguage").value,tags:$("#manualTags").value.split(",").map(x=>x.trim()).filter(Boolean),coverR2Key:$("#manualCover").value,bodyMarkdown:$("#manualBody").value,bodyMarkdownEn:$("#manualBodyEn").value,sources:parsePipeRows($("#manualSources").value,"source"),media:parsePipeRows($("#manualMedia").value,"media"),editorialAction:$("#manualEditorialAction").value,editorialNotes:$("#manualEditorialNotes").value,publishedAt:$("#manualPublishedAt").value,status:$("#manualStatus").value};
+  const {data}=await saveWithEditorialOverride(id?("/api/admin/manual-posts/"+id):"/api/admin/manual-posts",id?"PATCH":"POST",payload);
   $("#manualMsg").textContent=data.ok?"Đã lưu bài":"Lỗi: "+(data.error||"");
   if(data.ok){resetManual();await loadManual();}
 });
 $("#newPostBtn").addEventListener("click",resetManual);
-$("#deletePostBtn").addEventListener("click",async()=>{const id=$("#manualId").value;if(!id||!confirm("Xóa bài này khỏi website?"))return;const {data}=await api("/api/admin/manual-posts/"+id,{method:"DELETE"});$("#manualMsg").textContent=data.ok?"Đã xóa bài":"Xóa thất bại";if(data.ok){resetManual();await loadManual();}});
+$("#deletePostBtn").addEventListener("click",async()=>{const id=$("#manualId").value;if(!id||!confirm("Lưu trữ bài này? Dữ liệu vẫn được giữ trong D1."))return;const {data}=await api("/api/admin/manual-posts/"+id,{method:"DELETE"});$("#manualMsg").textContent=data.ok?"Đã lưu trữ bài":"Lưu trữ thất bại";if(data.ok){resetManual();await loadManual();}});
 $("#mediaForm").addEventListener("submit",async e=>{
   e.preventDefault();const file=$("#mediaFile").files?.[0];if(!file){$("#mediaMsg").textContent="Chọn ảnh trước.";return}
   $("#mediaMsg").textContent="Đang upload…";const form=new FormData();form.append("file",file);
