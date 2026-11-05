@@ -1,4 +1,4 @@
-import { categoryUrl } from "../constants/editorial-taxonomy";
+import { categoryUrl, normalizeCategoryName } from "../constants/editorial-taxonomy";
 
 type EditorialPost = {
   id: number; slug: string; title: string; title_en?: string;
@@ -133,7 +133,8 @@ function queryFor(section: HTMLElement) {
   else if (mode === "archive") {
     for (const k of ["category", "tag", "uncategorized"]) {
       const v = source.searchParams.get(k);
-      if (v) u.set(k, v);
+      if (!v) continue;
+      u.set(k, k === "category" ? normalizeCategoryName(v) : v);
     }
   }
   return u.toString();
@@ -144,8 +145,9 @@ function setFilterLabel(section: HTMLElement) {
   const u = new URL(location.href);
   const tag = u.searchParams.get("tag");
   const cat = u.searchParams.get("category");
+  const normalizedCat = cat ? normalizeCategoryName(cat) : "";
   label.textContent = tag ? "Bài viết theo tag: #" + tag :
-    cat ? "Bài viết trong chuyên mục: " + cat :
+    normalizedCat ? "Bài viết trong chuyên mục: " + normalizedCat :
     u.searchParams.has("uncategorized") ? "Bài viết chưa phân loại" :
     "Tất cả bài viết, sắp xếp theo ngày mới nhất.";
 }
