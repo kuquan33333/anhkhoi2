@@ -52,7 +52,7 @@ const enableBanner = siteConfig.banner.enable;
 
 let pageTitle: string;
 if (title) {
-	pageTitle = `${title} - ${siteConfig.title}`;
+	pageTitle = title === siteConfig.title ? title : `${title} - ${siteConfig.title}`;
 } else {
 	pageTitle = `${siteConfig.title} - ${siteConfig.subtitle}`;
 }
@@ -85,7 +85,8 @@ const bannerOffset =
 
 		<meta charset="UTF-8" />
 		<meta name="description" content={description || pageTitle}>
-		<meta name="author" content={profileConfig.name}>\n\t\t<link rel="canonical" href={Astro.url} />
+		<meta name="author" content={profileConfig.name}>
+		<link rel="canonical" href={Astro.url.toString()} />
 		<meta property="og:image" content={new URL("/assets/anhkhoi-cover.webp",Astro.site).toString()}>
 		<meta name="theme-color" content="#1853b9">
 		<link rel="apple-touch-icon" href={url("/favicon-ak.png")} />
@@ -103,7 +104,8 @@ const bannerOffset =
 		<meta name="twitter:card" content="summary_large_image">
 		<meta property="twitter:url" content={Astro.url}>
 		<meta name="twitter:title" content={pageTitle}>
-		<meta name="twitter:description" content={description || pageTitle}>\n\t\t<meta name="twitter:image" content={new URL("/assets/anhkhoi-cover.webp",Astro.site).toString()}>
+		<meta name="twitter:description" content={description || pageTitle}>
+		<meta name="twitter:image" content={new URL("/assets/anhkhoi-cover.webp",Astro.site).toString()}>
 
 		<meta name="viewport" content="width=device-width" />
 		<meta name="generator" content={Astro.generator} />

@@ -8,6 +8,21 @@ interface Props {
 }
 
 const links = Astro.props.links;
+
+const navLabelEn = (link: NavBarLink) => {
+	const labels: Record<string, string> = {
+		"/": "Home",
+		"/archive/": "Articles",
+		"/about/": "About",
+		"/reels/": "AI Videos",
+		"/facebook/": "Facebook feed",
+		"/chuyen-muc/cong-nghe-ai/": "Technology & AI",
+		"/chuyen-muc/khoa-hoc-kham-pha/": "Science & Discovery",
+		"/chuyen-muc/du-lich-trai-nghiem/": "Travel & Experiences",
+		"/chuyen-muc/quan-su-cong-nghe-quoc-phong/": "Military & Defense Technology",
+	};
+	return labels[link.url] || link.name;
+};
 ---
 <div id="nav-menu-panel" class:list={["float-panel float-panel-closed absolute transition-all fixed top-14 right-2 md:right-4 px-2 py-2"]}>
     {links.map((link) => (
@@ -17,7 +32,7 @@ const links = Astro.props.links;
            target={link.external ? "_blank" : null}
         >
             <div class="transition text-black/75 dark:text-white/75 font-bold group-hover:text-[var(--primary)] group-active:text-[var(--primary)]">
-                <span data-ak-vi={link.name} data-ak-en={link.url==="/"?"Home":link.url==="/archive/"?"Articles":link.url==="/about/"?"About":link.url==="/reels/"?"AI Videos":"Facebook"}>{link.name}</span>
+                <span data-ak-vi={link.name} data-ak-en={navLabelEn(link)}>{link.name}</span>
             </div>
             {!link.external && <Icon name="material-symbols:chevron-right-rounded"
                   class="transition text-[1.25rem] text-[var(--primary)]"
