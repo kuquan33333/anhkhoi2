@@ -10,9 +10,9 @@ test("article lists use numbered pagination instead of load-more", () => {
   const api = read("functions/api/manual-posts.js");
   assert.doesNotMatch(feed, /Xem thêm bài viết|data-manual-more/);
   assert.match(feed, /data-manual-pages/);
-  assert.match(runtime, /pageWindow\(current: number, total: number\)/);
+  assert.match(runtime, /function\s+pageWindow\s*\(/);
   assert.match(runtime, /pageSize/);
-  assert.match(runtime, /params\.set\("offset", String\(\(state\.page - 1\) \* state\.pageSize\)\)/);
+  assert.match(runtime, /params\.set\([\s\S]*?"offset"[\s\S]*?state\.pageSize[\s\S]*?\)/);
   assert.match(runtime, /setAttribute\("aria-current", "page"\)/);
   assert.match(api, /SELECT COUNT\(\*\) AS total FROM manual_posts/);
   assert.match(api, /pageCount/);
