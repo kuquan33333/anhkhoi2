@@ -217,15 +217,27 @@ function updateSeo(post: any, slug: string) {
   }
   jsonLd.textContent = JSON.stringify({
     "@context":"https://schema.org",
-    "@type":"Article",
-    headline:title,
-    description,
-    image:[imageUrl],
-    author:{"@type":"Person",name:"Anh Khôi"},
-    publisher:{"@type":"Person",name:"Anh Khôi"},
-    datePublished:post.published_at || post.created_at,
-    dateModified:post.updated_at || post.published_at || post.created_at,
-    mainEntityOfPage:canonicalUrl,
+    "@graph":[
+      {
+        "@type":"Article",
+        headline:title,
+        description,
+        image:[imageUrl],
+        author:{"@type":"Person",name:"Anh Khôi"},
+        publisher:{"@type":"Person",name:"Anh Khôi"},
+        datePublished:post.published_at || post.created_at,
+        dateModified:post.updated_at || post.published_at || post.created_at,
+        mainEntityOfPage:canonicalUrl,
+      },
+      {
+        "@type":"BreadcrumbList",
+        itemListElement:[
+          {"@type":"ListItem",position:1,name:"Trang chủ",item:new URL("/",location.origin).toString()},
+          {"@type":"ListItem",position:2,name:String(post.category||"Bài viết"),item:new URL(post.category?categoryUrl(String(post.category)):"/archive/",location.origin).toString()},
+          {"@type":"ListItem",position:3,name:title,item:canonicalUrl}
+        ]
+      }
+    ]
   });
 }
 
