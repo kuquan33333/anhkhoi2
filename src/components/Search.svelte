@@ -77,7 +77,7 @@ const search = async (keyword: string, isDesktop: boolean): Promise<void> => {
 
 		// Runtime editorial posts are stored in D1 and therefore are not in the static Pagefind index.
 		try {
-			const response = await fetch("/api/manual-posts?search=" + encodeURIComponent(keyword) + "&limit=20");
+			const response = await fetch(`/api/manual-posts?search=${encodeURIComponent(keyword)}&limit=20`);
 			if (response.ok) {
 				const payload = await response.json();
 				const escapeHtml = (value: string) => value.replace(/[&<>"']/g, ch => ({
@@ -85,7 +85,7 @@ const search = async (keyword: string, isDesktop: boolean): Promise<void> => {
 				}[ch] || ch));
 				const posts: Array<{ slug?: string; title?: string; excerpt?: string }> = Array.isArray(payload.posts) ? payload.posts : [];
 				const dynamic: SearchResult[] = posts.map((post) => ({
-					url: "/bai-viet/?slug=" + encodeURIComponent(post.slug || ""),
+					url: `/bai-viet/?slug=${encodeURIComponent(post.slug || "")}`,
 					meta: { title: String(post.title || "Bài viết") },
 					excerpt: escapeHtml(String(post.excerpt || "").slice(0, 220))
 				}));
