@@ -1,30 +1,62 @@
 ---
 import MainGridLayout from "../layouts/MainGridLayout.astro";
 ---
-<MainGridLayout title="Bài viết · Anh Khôi AI Media" description="Bài viết do Anh Khôi đăng trực tiếp từ trang quản trị.">
-  <article id="ak-live-article" class="card-base relative px-6 md:px-9 pt-6 pb-9 mb-4" aria-label="Nội dung bài viết">
-    <nav aria-label="Quay lại danh sách" class="mb-6">
+<MainGridLayout
+  title="Bài viết · Anh Khôi AI Media"
+  description="Bài chuyên đề trên website cá nhân Anh Khôi AI Media."
+  setOGTypeArticle={true}
+>
+  <article id="ak-live-article" class="card-base relative px-4 sm:px-6 md:px-8 pt-5 pb-9 mb-4" aria-label="Nội dung bài viết">
+    <div id="ak-reading-progress" class="ak-reading-progress" aria-hidden="true"><span></span></div>
+
+    <nav aria-label="Quay lại danh sách" class="mb-5">
       <form action="/archive/" method="get" class="inline">
         <button type="submit" id="ak-live-back" class="ak-article-back inline-flex items-center gap-2 rounded-xl px-3 py-2 font-bold text-sm">
           <span aria-hidden="true">←</span> Quay lại danh sách bài viết
         </button>
       </form>
     </nav>
+
     <div id="ak-live-loading" class="text-75 py-9" role="status">Đang tải bài viết…</div>
     <div id="ak-live-error" class="hidden" role="alert">
       <h1 class="text-2xl font-extrabold">Không tải được bài viết</h1>
       <p id="ak-live-error-text" class="text-75 mt-3">Không tìm thấy bài viết hoặc kết nối gặp sự cố.</p>
       <button type="button" id="ak-live-retry" class="ak-article-back mt-4 font-bold rounded-xl px-4 py-2">Thử tải lại</button>
     </div>
+
     <div id="ak-live-content" class="hidden">
-      <h1 id="ak-live-title" class="ak-article-title text-3xl md:text-4xl font-extrabold leading-tight mt-2 text-90"></h1>
-      <div id="ak-live-meta" class="ak-article-meta mt-5 text-sm font-medium"></div>
-      <p id="ak-live-excerpt" class="text-75 leading-8 mt-5"></p>
-      <figure id="ak-live-figure" class="hidden mt-7 mb-6">
-        <img id="ak-live-cover" class="ak-article-cover w-full rounded-xl" alt="" loading="eager" />
-      </figure>
-      <div id="ak-live-body" class="prose dark:prose-invert prose-base !max-w-none custom-md ak-live-body mt-8" data-pagefind-body></div>
-      <div id="ak-live-tags" class="flex flex-wrap gap-2 mt-8"></div>
+      <header class="ak-article-reading">
+        <h1 id="ak-live-title" class="ak-article-title text-3xl md:text-4xl font-extrabold leading-tight mt-2 text-90"></h1>
+        <div id="ak-live-meta" class="ak-article-meta mt-5 text-sm font-medium"></div>
+        <p id="ak-live-excerpt" class="ak-article-deck text-75 leading-8 mt-5"></p>
+        <figure id="ak-live-figure" class="hidden mt-7 mb-7">
+          <img id="ak-live-cover" class="ak-article-cover w-full rounded-xl" alt="" loading="eager" decoding="async" />
+        </figure>
+      </header>
+
+      <div class="ak-article-shell">
+        <div class="ak-article-reading min-w-0">
+          <div id="ak-live-body" class="prose dark:prose-invert prose-base !max-w-none custom-md ak-live-body" data-pagefind-body></div>
+          <section id="ak-live-sources" class="ak-article-sources hidden" aria-labelledby="ak-sources-title">
+            <h2 id="ak-sources-title">Nguồn tham khảo</h2>
+            <ul id="ak-source-list"></ul>
+          </section>
+          <div id="ak-live-tags" class="flex flex-wrap gap-2 mt-8"></div>
+        </div>
+
+        <aside id="ak-live-toc-wrap" class="ak-live-toc-wrap hidden" aria-label="Mục lục bài viết">
+          <details id="ak-live-toc-details" open>
+            <summary>Mục lục</summary>
+            <nav id="ak-live-toc"></nav>
+          </details>
+        </aside>
+      </div>
+
+      <section id="ak-related" class="ak-related hidden" aria-labelledby="ak-related-title">
+        <h2 id="ak-related-title">Bài liên quan</h2>
+        <div id="ak-related-list"></div>
+      </section>
+
       <div class="ak-article-footer mt-9 pt-6">
         <form action="/archive/" method="get" class="inline">
           <button type="submit" class="ak-article-back font-bold rounded-xl px-4 py-2 inline-flex items-center gap-2">← Xem các bài viết khác</button>
@@ -35,30 +67,69 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 </MainGridLayout>
 
 <style is:global>
+.ak-reading-progress{position:sticky;z-index:30;top:0;height:3px;margin:-1.25rem -1rem 1.15rem;background:transparent;pointer-events:none}
+.ak-reading-progress span{display:block;width:0;height:100%;border-radius:99px;background:var(--primary);transition:width .08s linear}
+.ak-article-reading{width:min(100%,48rem);margin-inline:auto}
+.ak-article-shell{display:grid;grid-template-columns:minmax(0,1fr);gap:1.5rem}
 .ak-article-back{color:var(--primary);background:var(--btn-regular-bg);text-decoration:none;transition:background .2s,transform .2s;border:0;cursor:pointer;font:inherit}
 .ak-article-back:hover{background:var(--btn-regular-bg-hover)}
 .ak-article-back:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
-.ak-article-title{position:relative;overflow-wrap:anywhere;line-height:1.3}
-.ak-article-title::before{content:"";display:block;position:absolute;width:4px;height:1.4rem;background:var(--primary);border-radius:5px;left:-1.15rem;top:.65rem}
-.ak-article-meta{color:var(--text-50);display:flex;flex-wrap:wrap;gap:.7rem;align-items:center}
-.ak-article-meta-part,.ak-article-meta-tags{display:inline-flex;align-items:center;gap:.5rem;color:var(--text-50);font-size:.82rem;font-weight:600;text-decoration:none}
+.ak-article-title{position:relative;overflow-wrap:anywhere;line-height:1.28;letter-spacing:-.025em}
+.ak-article-title::before{content:"";display:block;position:absolute;width:4px;height:1.4rem;background:var(--primary);border-radius:5px;left:-1.1rem;top:.65rem}
+.ak-article-meta{color:var(--text-50);display:flex;flex-wrap:wrap;gap:.55rem .75rem;align-items:center}
+.ak-article-meta-part,.ak-article-meta-tags{display:inline-flex;align-items:center;gap:.45rem;color:var(--text-50);font-size:.8rem;font-weight:600;text-decoration:none}
 .ak-article-meta-part:hover,.ak-article-meta-tags a:hover{color:var(--primary)}
-.ak-article-meta-symbol{display:grid;place-items:center;background:var(--btn-regular-bg);color:var(--btn-content);border-radius:.5rem;width:2rem;height:2rem;font-size:1rem;line-height:1}
+.ak-article-meta-symbol{display:grid;place-items:center;background:var(--btn-regular-bg);color:var(--btn-content);border-radius:.5rem;width:1.9rem;height:1.9rem;font-size:.92rem;line-height:1}
 .ak-article-meta-tags a{color:var(--text-50);text-decoration:none}
-.ak-article-cover{display:block;max-height:38rem;object-fit:contain;background:var(--btn-plain-bg-hover);margin:auto}
-.ak-live-body{line-height:1.9;color:var(--text-primary);font-size:1rem;overflow-wrap:anywhere}
-.ak-live-body h1,.ak-live-body h2,.ak-live-body h3,.ak-live-body h4{color:var(--text-primary);font-weight:850;line-height:1.38;margin:1.55em 0 .6em}
-.ak-live-body h1{font-size:1.85rem}.ak-live-body h2{font-size:1.5rem}.ak-live-body h3{font-size:1.22rem}
-.ak-live-body p{margin:1em 0;color:var(--text-primary)}
+.ak-article-deck{font-size:1.03rem}
+.ak-article-cover{display:block;max-height:55vh;object-fit:contain;background:var(--btn-plain-bg-hover);margin:auto}
+.ak-live-body{line-height:1.88;color:var(--text-primary);font-size:1rem;overflow-wrap:anywhere}
+.ak-live-body h1,.ak-live-body h2,.ak-live-body h3,.ak-live-body h4{color:var(--text-primary);font-weight:850;line-height:1.38;margin:1.65em 0 .62em;scroll-margin-top:5rem}
+.ak-live-body h1{font-size:1.85rem}.ak-live-body h2{font-size:1.46rem}.ak-live-body h3{font-size:1.18rem}
+.ak-live-body p{margin:1.02em 0;color:var(--text-primary)}
 .ak-live-body strong,.ak-live-body li{color:var(--text-primary)}
-.ak-live-body blockquote{border-left:4px solid var(--primary);background:var(--btn-plain-bg-hover);border-radius:.25rem .75rem .75rem .25rem;padding:.7rem 1.1rem;color:var(--text-75)}
+.ak-live-body ul,.ak-live-body ol{padding-left:1.4rem}
+.ak-live-body blockquote{border-left:4px solid var(--primary);background:var(--btn-plain-bg-hover);border-radius:.25rem .75rem .75rem .25rem;padding:.72rem 1.05rem;color:var(--text-75)}
 .ak-live-body blockquote p{color:var(--text-75)}
 .ak-live-body a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
-.ak-live-body img{max-width:100%;height:auto;max-height:75vh;object-fit:contain;margin:1.35rem auto;border-radius:.75rem}
+.ak-live-body img{max-width:100%;height:auto;max-height:68vh;object-fit:contain;margin:0 auto;border-radius:.75rem}
+.ak-inline-media{margin:1.65rem 0}
+.ak-inline-media img{width:100%;height:auto;max-height:62vh;object-fit:contain;background:var(--btn-plain-bg-hover);border-radius:.8rem}
+.ak-inline-media figcaption{font-size:.8rem;color:var(--text-50);line-height:1.55;margin-top:.55rem;text-align:center}
 .ak-live-body code{padding:.15em .35em;border-radius:.35rem;background:var(--btn-plain-bg-hover);color:var(--text-primary)}
 .ak-live-body pre code{background:transparent;color:inherit}
-.ak-live-body table{display:block;overflow-x:auto}
+.ak-live-body table{display:block;width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .ak-live-body :focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.ak-article-sources{margin-top:2.2rem;padding-top:1.4rem;border-top:1px solid var(--line-color)}
+.ak-article-sources h2{font-size:1.35rem;font-weight:850;color:var(--text-primary);margin-bottom:.8rem}
+.ak-article-sources ul{display:grid;gap:.55rem;margin:0;padding-left:1.15rem}
+.ak-article-sources li{color:var(--text-75);line-height:1.65}
+.ak-article-sources a{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+.ak-live-toc-wrap{font-size:.82rem}
+.ak-live-toc-wrap details{border:1px solid var(--line-color);border-radius:.8rem;background:var(--card-bg);padding:.7rem .8rem}
+.ak-live-toc-wrap summary{font-weight:850;color:var(--text-primary);cursor:pointer}
+.ak-live-toc{display:grid;gap:.45rem;margin-top:.7rem}
+.ak-live-toc a{color:var(--text-50);text-decoration:none;line-height:1.45}
+.ak-live-toc a[data-level="3"]{padding-left:.75rem}
+.ak-live-toc a:hover{color:var(--primary)}
+.ak-related{margin-top:2rem;padding-top:1.5rem;border-top:1px dashed var(--line-color)}
+.ak-related>h2{font-size:1.3rem;font-weight:850;color:var(--text-primary);margin-bottom:.8rem}
+.ak-related-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}
+.ak-related-link{display:block;border-radius:.75rem;background:var(--btn-regular-bg);padding:.85rem 1rem;color:var(--text-primary);font-weight:750;line-height:1.5;text-decoration:none}
+.ak-related-link:hover{color:var(--primary);background:var(--btn-regular-bg-hover)}
 .ak-article-footer{border-top:1px dashed var(--line-color)}
-@media(max-width:640px){.ak-article-title::before{left:-.8rem;height:1rem;top:.45rem}.ak-article-title{font-size:1.7rem}}
+@media(min-width:1180px){
+  .ak-article-shell{grid-template-columns:minmax(0,48rem) 12.5rem;justify-content:center;align-items:start}
+  .ak-live-toc-wrap{display:block!important;position:sticky;top:4.25rem}
+}
+@media(max-width:640px){
+  .ak-reading-progress{margin:-1.25rem -.75rem 1rem}
+  .ak-article-title::before{left:-.7rem;height:1rem;top:.45rem}
+  .ak-article-title{font-size:1.68rem!important}
+  .ak-article-deck{font-size:.96rem;line-height:1.75}
+  .ak-article-cover{max-height:46vh}
+  .ak-live-body{font-size:.98rem;line-height:1.82}
+  .ak-live-body h2{font-size:1.3rem}
+  .ak-related-list{grid-template-columns:1fr}
+}
 </style>
