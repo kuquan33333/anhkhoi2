@@ -26,10 +26,13 @@ export async function onRequestGet({ env }) {
   const CATEGORY_ORDER = [
       "Thời sự & Xã hội",
       "Thế giới",
-      "Sức khỏe & Y tế",
-      "Khoa học & Thiên văn",
-      "Công nghệ & AI",
+      "Quân sự & Quốc phòng",
+      "Pháp luật & An ninh",
       "Kinh tế & Kinh doanh",
+      "Công nghệ & AI",
+      "Khoa học & Thiên văn",
+      "Sức khỏe & Y tế",
+      "Giáo dục",
       "Đời sống & Tạp chí",
       "Văn hóa & Giải trí",
       "Thể thao"
