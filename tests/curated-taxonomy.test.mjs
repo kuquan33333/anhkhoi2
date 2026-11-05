@@ -6,10 +6,13 @@ const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8"
 const categories = [
   "Thời sự & Xã hội",
   "Thế giới",
-  "Sức khỏe & Y tế",
-  "Khoa học & Thiên văn",
-  "Công nghệ & AI",
+  "Quân sự & Quốc phòng",
+  "Pháp luật & An ninh",
   "Kinh tế & Kinh doanh",
+  "Công nghệ & AI",
+  "Khoa học & Thiên văn",
+  "Sức khỏe & Y tế",
+  "Giáo dục",
   "Đời sống & Tạp chí",
   "Văn hóa & Giải trí",
   "Thể thao",
@@ -38,6 +41,9 @@ test("admin exposes broad fixed categories and at most three unique topics", () 
   assert.match(admin, /Sức khỏe &amp; Y tế|Sức khỏe & Y tế/);
   assert.match(admin, /Khoa học &amp; Thiên văn|Khoa học & Thiên văn/);
   assert.match(admin, /Đời sống &amp; Tạp chí|Đời sống & Tạp chí/);
+  assert.match(admin, /Quân sự &amp; Quốc phòng|Quân sự & Quốc phòng/);
+  assert.match(admin, /Pháp luật &amp; An ninh|Pháp luật & An ninh/);
+  assert.match(admin, /Giáo dục/);
   assert.match(admin, /Chủ đề \(tối đa 3/);
   assert.match(admin, /tối đa 10 chủ đề/);
 });
