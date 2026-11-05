@@ -1,52 +1,38 @@
 import { requireAdmin } from "../../_auth.js";
 import { json, readJson } from "../../_utils.js";
+import {
+  editorialWarnings,
+  normalizeCategory,
+  normalizeMedia,
+  normalizeSources,
+  normalizeTags,
+  pubDate,
+  slugify,
+} from "../../_editorial.js";
 
-const CATEGORY_OPTIONS = new Set([
-  "Thời sự & Xã hội",
-  "Thế giới",
-  "Quân sự & Quốc phòng",
-  "Pháp luật & An ninh",
-  "Sức khỏe & Y tế",
-  "Giáo dục",
-  "Khoa học & Thiên văn",
-  "Công nghệ & AI",
-  "Kinh tế & Kinh doanh",
-  "Đời sống & Tạp chí",
-  "Văn hóa & Giải trí",
-  "Thể thao"
-]);
-const normalizeCategory = value => {
-  const name = String(value || "").trim();
-  return CATEGORY_OPTIONS.has(name) ? name : null;
-};
-const normalizeTags = value => [...new Set(
-  (Array.isArray(value) ? value : [])
-    .map(x => String(x).trim())
-    .filter(Boolean)
-)].slice(0, 3);
-
-const slugify = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 100);
-function pubDate(input, fallback) {
-  const text = String(input || "").trim();
-  if (!text) return fallback;
-  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)?$/.test(text)) return fallback;
-  const d = new Date(text);
-  return Number.isFinite(d.valueOf()) ? d.toISOString() : fallback;
+function parseArray(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function onRequestGet({ request, env }) {
   const auth = await requireAdmin(request, env);
   if (!auth.ok) return auth.response;
   const rows = await env.DB.prepare(
-    "SELECT id,slug,title,title_en,excerpt,language,category,tags_json,cover_r2_key,status,published_at,created_at,updated_at " +
+    "SELECT id,slug,title,title_en,excerpt,language,category,tags_json,cover_r2_key,status,published_at,created_at,updated_at," +
+    "editorial_action,editorial_notes,review_required,archived_at,sources_json,media_json " +
     "FROM manual_posts ORDER BY COALESCE(published_at,created_at) DESC,id DESC LIMIT 500"
   ).all();
-  const posts = (rows.results || []).map(({ tags_json, ...rest }) => {
-    let tags = [];
-    try { tags = JSON.parse(tags_json || "[]"); } catch {}
-    return { ...rest, tags };
-  });
+  const posts = (rows.results || []).map(({ tags_json, sources_json, media_json, ...rest }) => ({
+    ...rest,
+    tags: parseArray(tags_json),
+    sourceCount: parseArray(sources_json).length,
+    mediaCount: parseArray(media_json).length,
+  }));
   return json({ ok: true, posts });
 }
 
@@ -57,24 +43,62 @@ export async function onRequestPost({ request, env }) {
   const title = String(body?.title || "").trim();
   const slug = slugify(body?.slug || title);
   if (!title || !slug) return json({ ok: false, error: "title_required" }, 400);
-  const status = body?.status === "published" ? "published" : "draft";
-  const publishedAt = pubDate(body?.publishedAt, status === "published" ? new Date().toISOString() : null);
+
+  const requestedStatus = ["published", "draft", "archived"].includes(body?.status) ? body.status : "draft";
+  const publishedAt = pubDate(body?.publishedAt, requestedStatus === "published" ? new Date().toISOString() : null);
   const language = body?.language === "en" ? "en" : "vi";
   const tags = normalizeTags(body?.tags);
+  const sources = normalizeSources(body?.sources);
+  const media = normalizeMedia(body?.media);
+  const category = normalizeCategory(body?.category);
   const cover = typeof body?.coverR2Key === "string" && /^admin\/[A-Za-z0-9/_\-.]+$/.test(body.coverR2Key)
     ? body.coverR2Key : null;
+  const candidate = {
+    title,
+    excerpt: String(body?.excerpt || ""),
+    bodyMarkdown: String(body?.bodyMarkdown || ""),
+    category,
+    tags,
+    sources,
+    media,
+    coverR2Key: cover,
+  };
+  const warnings = editorialWarnings(candidate);
+  if (requestedStatus === "published" && warnings.length && body?.overrideWarnings !== true) {
+    return json({ ok:false, error:"editorial_review_required", warnings, canOverride:true }, 409);
+  }
+
+  const editorialAction = ["KEEP","REWRITE","MOVE","ARCHIVE","REMOVE_DUPLICATE"].includes(body?.editorialAction)
+    ? body.editorialAction : "KEEP";
+  const reviewRequired = warnings.some(x => x.severity === "review" || x.severity === "error") ? 1 : 0;
   try {
     const r = await env.DB.prepare(
       "INSERT INTO manual_posts (slug,title,title_en,excerpt,excerpt_en,body_markdown,body_markdown_en," +
-      "language,category,tags_json,cover_r2_key,status,published_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    ).bind(slug,title,String(body?.titleEn||"").slice(0,300),String(body?.excerpt||"").slice(0,1000),
-      String(body?.excerptEn||"").slice(0,1000),String(body?.bodyMarkdown||""),
-      String(body?.bodyMarkdownEn||""),language,
-      normalizeCategory(body?.category),JSON.stringify(tags),
-      cover,status,publishedAt
+      "language,category,tags_json,cover_r2_key,status,published_at,sources_json,media_json,editorial_action," +
+      "editorial_notes,review_required,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    ).bind(
+      slug,
+      title,
+      String(body?.titleEn || "").slice(0, 300),
+      String(body?.excerpt || "").slice(0, 1000),
+      String(body?.excerptEn || "").slice(0, 1000),
+      String(body?.bodyMarkdown || ""),
+      String(body?.bodyMarkdownEn || ""),
+      language,
+      category,
+      JSON.stringify(tags),
+      cover,
+      requestedStatus,
+      publishedAt,
+      JSON.stringify(sources),
+      JSON.stringify(media),
+      editorialAction,
+      String(body?.editorialNotes || "").slice(0, 1200),
+      reviewRequired,
+      requestedStatus === "archived" ? new Date().toISOString() : null,
     ).run();
-    return json({ ok: true, id: r.meta?.last_row_id, slug });
+    return json({ ok:true, id:r.meta?.last_row_id, slug, warnings });
   } catch (error) {
-    return json({ ok: false, error: "save_failed", detail: String(error) }, 400);
+    return json({ ok:false, error:"save_failed", detail:String(error) }, 400);
   }
 }

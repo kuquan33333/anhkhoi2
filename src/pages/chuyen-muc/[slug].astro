@@ -1,0 +1,22 @@
+---
+import ManualPostsFeed from "../../components/ManualPostsFeed.astro";
+import MainGridLayout from "../../layouts/MainGridLayout.astro";
+import { editorialCategories } from "../../constants/editorial-taxonomy";
+
+export function getStaticPaths() {
+  return editorialCategories.map(category => ({
+    params: { slug: category.slug },
+    props: { category },
+  }));
+}
+
+const { category } = Astro.props;
+---
+<MainGridLayout title={category.name} description={category.description}>
+  <ManualPostsFeed
+    mode="category"
+    category={category.name}
+    sectionTitle={category.name}
+    sectionDescription={category.description}
+  />
+</MainGridLayout>

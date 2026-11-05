@@ -83,8 +83,8 @@ const search = async (keyword: string, isDesktop: boolean): Promise<void> => {
 				const escapeHtml = (value: string) => value.replace(/[&<>"']/g, ch => ({
 					"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
 				}[ch] || ch));
-				const posts = Array.isArray(payload.posts) ? payload.posts : [];
-				const dynamic: SearchResult[] = posts.map((post: any) => ({
+				const posts: Array<{ slug?: string; title?: string; excerpt?: string }> = Array.isArray(payload.posts) ? payload.posts : [];
+				const dynamic: SearchResult[] = posts.map((post) => ({
 					url: "/bai-viet/?slug=" + encodeURIComponent(post.slug || ""),
 					meta: { title: String(post.title || "Bài viết") },
 					excerpt: escapeHtml(String(post.excerpt || "").slice(0, 220))

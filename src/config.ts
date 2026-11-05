@@ -8,7 +8,7 @@ import type {
 
 export const siteConfig: SiteConfig = {
 	title: "Anh Khôi AI Media",
-	subtitle: "Video AI, tin nổi bật và công nghệ",
+	subtitle: "Công nghệ, AI, khoa học, khám phá và sáng tạo",
 	lang: "vi",
 	themeColor: { hue: 250, fixed: false },
 	banner: {
@@ -27,21 +27,17 @@ export const siteConfig: SiteConfig = {
 export const navBarConfig: NavBarConfig = {
 	links: [
 		{ name: "Trang chủ", url: "/" },
-		{ name: "Video AI", url: "/reels/" },
-		{ name: "Facebook feed", url: "/facebook/" },
+		{ name: "Công nghệ & AI", url: "/chuyen-muc/cong-nghe-ai/" },
+		{ name: "Khoa học & Khám phá", url: "/chuyen-muc/khoa-hoc-kham-pha/" },
+		{ name: "Du lịch & Trải nghiệm", url: "/chuyen-muc/du-lich-trai-nghiem/" },
 		{ name: "Bài viết", url: "/archive/" },
 		{ name: "Giới thiệu", url: "/about/" },
-		{
-			name: "Facebook",
-			url: "https://www.facebook.com/profile.php?id=61595505020148",
-			external: true,
-		},
 	],
 };
 export const profileConfig: ProfileConfig = {
 	avatar: "/assets/anhkhoi-avatar.webp",
 	name: "Anh Khôi",
-	bio: "Sáng tạo video AI, chia sẻ tin đáng chú ý và những điều thú vị về công nghệ.",
+	bio: "Website cá nhân về công nghệ, AI, khoa học, khám phá, sáng tạo và những kiến thức hữu ích được giải thích dễ hiểu.",
 	links: [
 		{
 			name: "Facebook",

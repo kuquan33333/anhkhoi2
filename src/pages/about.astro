@@ -3,25 +3,39 @@ import MainGridLayout from "../layouts/MainGridLayout.astro";
 
 const facebook = "https://www.facebook.com/profile.php?id=61595505020148";
 ---
-<MainGridLayout title="Giới thiệu Anh Khôi" description="Sáng tạo AI, video và công nghệ cùng Anh Khôi.">
+<MainGridLayout
+  title="Giới thiệu Anh Khôi"
+  description="Anh Khôi AI Media là website cá nhân/chuyên đề về công nghệ, AI, khoa học, khám phá, sáng tạo và kỹ năng hữu ích."
+>
   <section data-pagefind-body class="card-base px-7 md:px-10 py-8 ak-about-body">
     <div class="ak-lang-vi">
-      <p class="text-sm font-bold text-[var(--primary)]">ANH KHOI · AI MEDIA</p>
+      <p class="text-sm font-bold text-[var(--primary)]">ANH KHÔI · WEBSITE CÁ NHÂN</p>
       <h1>Chào bạn, mình là Anh Khôi.</h1>
-      <p>Mình yêu thích sáng tạo video bằng AI, tìm hiểu công nghệ mới và chia sẻ những câu chuyện thú vị đang được mọi người quan tâm. Đây là không gian riêng để mình lưu lại những ý tưởng, trải nghiệm và góc nhìn của mình.</p>
-      <h2>Website này có gì?</h2>
-      <p>Bạn sẽ tìm thấy video AI, bài viết về công nghệ, những câu chuyện đáng chú ý và các ý tưởng sáng tạo hình ảnh. Mình ưu tiên cách kể dễ hiểu, gần gũi và có nguồn rõ ràng khi chia sẻ thông tin thời sự.</p>
-      <h2>Cùng kết nối nhé!</h2>
-      <p>Bạn có thể xem những nội dung mới nhất trên <a href={facebook} target="_blank" rel="noopener noreferrer">Facebook Anh Khôi</a> hoặc ghé <a href="/reels/">thư viện Reels</a> ngay trên website.</p>
+      <p>Đây là website cá nhân/chuyên đề của mình, nơi mình biên soạn và chia sẻ những nội dung về công nghệ, AI, khoa học, khám phá, sáng tạo, du lịch và kỹ năng số. Website không phải cơ quan báo chí và không vận hành theo mô hình cập nhật tin nóng 24/7.</p>
+
+      <h2>Mình chọn nội dung như thế nào?</h2>
+      <p>Mình ưu tiên các chủ đề có giá trị đọc lâu dài: giải thích một công nghệ hoạt động ra sao, một nghiên cứu có ý nghĩa gì, một điểm đến nên trải nghiệm thế nào hoặc một kỹ năng số giúp người đọc an toàn hơn. Với các dữ kiện cần kiểm chứng, bài viết ưu tiên tài liệu chính thức, nghiên cứu và nguồn chuyên ngành đáng tin cậy.</p>
+
+      <h2>Giới hạn biên tập</h2>
+      <p>Nội dung sức khỏe chỉ nhằm mục đích cung cấp kiến thức chung, không thay thế chẩn đoán hoặc tư vấn của bác sĩ. Nội dung quân sự chỉ sử dụng thông tin đã công khai ở góc độ công nghệ, lịch sử và kiến thức; không đăng bí mật, hướng dẫn chế tạo vũ khí hay phương pháp tấn công. Website cũng không đăng tin đồn, đời tư hoặc cáo buộc chưa được xác minh.</p>
+
+      <h2>Facebook và video</h2>
+      <p>Phần Facebook/Reels là khu vực riêng cho nội dung công khai từ tài khoản cá nhân và được tách khỏi hệ thống bài viết chuyên đề. Bạn có thể xem tại <a href={facebook} target="_blank" rel="noopener noreferrer">Facebook Anh Khôi</a> hoặc <a href="/reels/">thư viện Reels</a>.</p>
     </div>
+
     <div class="ak-lang-en">
-      <p class="text-sm font-bold text-[var(--primary)]">ANH KHOI · AI MEDIA</p>
+      <p class="text-sm font-bold text-[var(--primary)]">ANH KHOI · PERSONAL WEBSITE</p>
       <h1>Hi, I'm Anh Khoi.</h1>
-      <p>I enjoy creating AI videos, exploring emerging technology, and sharing stories that spark curiosity. This website is my own space for ideas, experiments, and perspectives worth passing along.</p>
-      <h2>What will you find here?</h2>
-      <p>AI-generated videos, technology articles, noteworthy stories, and visual experiments. I aim to keep things engaging and easy to follow, while citing reliable sources whenever I cover current events.</p>
-      <h2>Let's stay in touch.</h2>
-      <p>Catch my latest work on <a href={facebook} target="_blank" rel="noopener noreferrer">Anh Khoi's Facebook</a>, or browse the <a href="/reels/">Reels collection</a> here on the site.</p>
+      <p>This is my personal specialist website for technology, AI, science, exploration, creativity, travel and digital skills. It is not a news organization and does not operate as a breaking-news service.</p>
+
+      <h2>How I choose topics</h2>
+      <p>I focus on subjects with lasting value: how a technology works, what a study means, how to plan a useful trip, or how to use digital tools more safely. Important factual claims are checked against official documentation, research and reputable specialist sources whenever possible.</p>
+
+      <h2>Editorial boundaries</h2>
+      <p>Health content provides general information and does not replace professional diagnosis or medical advice. Military content is limited to public technology, history and educational context; it does not publish secrets, weapon-building instructions or attack methods.</p>
+
+      <h2>Facebook and video</h2>
+      <p>Facebook/Reels remain a separate area for public posts from my personal account. Visit <a href={facebook} target="_blank" rel="noopener noreferrer">Anh Khoi on Facebook</a> or browse the <a href="/reels/">Reels collection</a>.</p>
     </div>
   </section>
 </MainGridLayout>

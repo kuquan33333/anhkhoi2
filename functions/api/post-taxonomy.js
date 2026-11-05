@@ -1,4 +1,5 @@
 import { json } from "../_utils.js";
+import { CATEGORY_OPTIONS } from "../_editorial.js";
 
 export async function onRequestGet({ env }) {
   const setting = await env.DB.prepare(
@@ -7,9 +8,12 @@ export async function onRequestGet({ env }) {
   if (setting?.value !== "true") {
     return json({ ok: true, categories: [], tags: [] });
   }
+
   const result = await env.DB.prepare(
-    "SELECT category,tags_json FROM manual_posts WHERE status='published' ORDER BY published_at DESC"
+    "SELECT category,tags_json FROM manual_posts WHERE status='published' " +
+    "AND COALESCE(editorial_action,'KEEP') NOT IN ('ARCHIVE','REMOVE_DUPLICATE') ORDER BY published_at DESC"
   ).all();
+
   const categoryCounts = new Map();
   const tagCounts = new Map();
   for (const post of result.results || []) {
@@ -23,40 +27,25 @@ export async function onRequestGet({ env }) {
       tagCounts.set(name, (tagCounts.get(name) || 0) + 1);
     }
   }
-  const CATEGORY_ORDER = [
-      "Thời sự & Xã hội",
-      "Thế giới",
-      "Quân sự & Quốc phòng",
-      "Pháp luật & An ninh",
-      "Sức khỏe & Y tế",
-      "Giáo dục",
-      "Khoa học & Thiên văn",
-      "Công nghệ & AI",
-      "Kinh tế & Kinh doanh",
-      "Đời sống & Tạp chí",
-      "Văn hóa & Giải trí",
-      "Thể thao"
-  ];
+
   const alphabetic = (a, b) => a.name.localeCompare(b.name, "vi");
   const categoryRank = (a, b) => {
-    const ai = CATEGORY_ORDER.indexOf(a.name);
-    const bi = CATEGORY_ORDER.indexOf(b.name);
+    const ai = CATEGORY_OPTIONS.indexOf(a.name);
+    const bi = CATEGORY_OPTIONS.indexOf(b.name);
     if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     return alphabetic(a, b);
   };
-  const popularity = (a, b) => b.count - a.count || alphabetic(a, b);
+
   const categories = [...categoryCounts]
     .map(([name, count]) => ({ name, count }))
     .sort(categoryRank);
   const tags = [...tagCounts]
     .map(([name, count]) => ({ name, count }))
     .filter(item => item.count >= 2)
-    .sort(popularity)
-    .slice(0, 10);
+    .sort((a, b) => b.count - a.count || alphabetic(a, b))
+    .slice(0, 15);
 
-  return json({
-    ok: true,
-    categories,
-    tags,
-  }, 200, { "cache-control": "public, max-age=30" });
+  return json({ ok: true, categories, tags }, 200, {
+    "cache-control": "public, max-age=30"
+  });
 }

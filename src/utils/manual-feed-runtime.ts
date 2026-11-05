@@ -1,3 +1,5 @@
+import { categoryUrl, normalizeCategoryName } from "../constants/editorial-taxonomy";
+
 type EditorialPost = {
   id: number; slug: string; title: string; title_en?: string;
   excerpt: string; excerpt_en?: string; language: string;
@@ -7,12 +9,14 @@ type EditorialPost = {
 type EditorialFeed = {
   key: string; page: number; fetching: boolean; pageSize: number; totalPages: number;
 };
+
 const editorialStates = new WeakMap<HTMLElement, EditorialFeed>();
 const iconPaths: Record<string, string> = {
-  calendar: "M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
+  calendar: "M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z",
   book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z",
   hash: "M4 9h16 M4 15h16 M11 3 7 21 M17 3l-4 18"
 };
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", value?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
@@ -55,7 +59,7 @@ function buildMeta(post: EditorialPost) {
   }
   const cat = el("a", "ak-editorial-meta-part");
   const category = (post.category || "").trim();
-  cat.href = category ? "/archive/?category=" + encodeURIComponent(category) : "/archive/?uncategorized=true";
+  cat.href = category ? categoryUrl(category) : "/archive/?uncategorized=true";
   cat.append(icon("book"), el("span", "", category || "Chưa phân loại"));
   meta.append(cat);
 
@@ -79,6 +83,7 @@ function makeCard(post: EditorialPost) {
   const validCover = typeof post.cover_r2_key === "string" &&
     /^admin\/[A-Za-z0-9/_\-.]+$/.test(post.cover_r2_key);
   if (validCover) card.classList.add("has-cover");
+
   const main = el("div", "ak-editorial-main");
   const title = el("h2", "ak-editorial-title");
   const link = el("a");
@@ -86,17 +91,20 @@ function makeCard(post: EditorialPost) {
   bilingual(link, post.title, post.title_en || "");
   title.append(link);
   main.append(title, buildMeta(post));
+
   if (post.excerpt) {
     const excerpt = el("p", "ak-editorial-excerpt");
     bilingual(excerpt, post.excerpt, post.excerpt_en || "");
     main.append(excerpt);
   }
   const count = el("div", "ak-editorial-read-time");
-  const words = Number(post.words || 0), minutes = Number(post.minutes || 1);
-  count.append(el("span", "", words + " từ"), el("span", "", "|"),
+  const words = Number(post.words || 0);
+  const minutes = Number(post.minutes || 1);
+  count.append(el("span", "", words + " từ"), el("span", "", "·"),
     el("span", "", minutes + " phút đọc"));
   main.append(count);
   card.append(main);
+
   if (validCover) {
     const photo = el("a", "ak-editorial-cover");
     photo.href = href;
@@ -105,7 +113,8 @@ function makeCard(post: EditorialPost) {
     img.src = "/api/media?key=" + encodeURIComponent(post.cover_r2_key || "");
     img.alt = post.title;
     img.loading = "lazy";
-    img.addEventListener("error", () => { photo.classList.add("hidden"); });
+    img.decoding = "async";
+    img.addEventListener("error", () => photo.classList.add("hidden"));
     photo.append(img);
     card.append(photo);
   } else {
@@ -120,10 +129,13 @@ function queryFor(section: HTMLElement) {
   const mode = section.dataset.mode;
   const source = new URL(location.href);
   const u = new URLSearchParams();
-  if (mode === "archive") {
+  const fixedCategory = String(section.dataset.category || "").trim();
+  if (fixedCategory) u.set("category", fixedCategory);
+  else if (mode === "archive") {
     for (const k of ["category", "tag", "uncategorized"]) {
       const v = source.searchParams.get(k);
-      if (v) u.set(k, v);
+      if (!v) continue;
+      u.set(k, k === "category" ? normalizeCategoryName(v) : v);
     }
   }
   return u.toString();
@@ -134,12 +146,14 @@ function setFilterLabel(section: HTMLElement) {
   const u = new URL(location.href);
   const tag = u.searchParams.get("tag");
   const cat = u.searchParams.get("category");
+  const normalizedCat = cat ? normalizeCategoryName(cat) : "";
   label.textContent = tag ? "Bài viết theo tag: #" + tag :
-    cat ? "Bài viết trong chuyên mục: " + cat :
+    normalizedCat ? "Bài viết trong chuyên mục: " + normalizedCat :
     u.searchParams.has("uncategorized") ? "Bài viết chưa phân loại" :
     "Tất cả bài viết, sắp xếp theo ngày mới nhất.";
 }
-function requestedPage(): number {
+function requestedPage(section: HTMLElement): number {
+  if (section.dataset.mode === "home") return 1;
   const raw = Number.parseInt(new URL(location.href).searchParams.get("page") || "1", 10);
   return Number.isInteger(raw) && raw > 0 ? raw : 1;
 }
@@ -152,8 +166,8 @@ function pageHref(page: number): string {
 function pageWindow(current: number, total: number): Array<number | "ellipsis"> {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const pages = new Set<number>([1, total, current - 1, current, current + 1]);
-  if (current <= 4) [2, 3, 4, 5].forEach(p => pages.add(p));
-  if (current >= total - 3) [total - 4, total - 3, total - 2, total - 1].forEach(p => pages.add(p));
+  if (current <= 4) [2, 3, 4, 5].forEach(p => { pages.add(p); });
+  if (current >= total - 3) [total - 4, total - 3, total - 2, total - 1].forEach(p => { pages.add(p); });
   const ordered = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
   const out: Array<number | "ellipsis"> = [];
   ordered.forEach((p, i) => {
@@ -168,7 +182,7 @@ function renderPagination(section: HTMLElement, current: number, total: number) 
   const prev = section.querySelector<HTMLAnchorElement>("[data-manual-prev]");
   const next = section.querySelector<HTMLAnchorElement>("[data-manual-next]");
   if (!nav || !pages || !prev || !next) return;
-  if (total <= 1) {
+  if (section.dataset.mode === "home" || total <= 1) {
     nav.hidden = true;
     pages.replaceChildren();
     return;
@@ -214,7 +228,9 @@ async function loadPosts(section: HTMLElement, state: EditorialFeed) {
     });
     if (!response.ok) throw new Error("post_feed_request_failed");
     const data = await response.json();
-    if (!section.isConnected || state.key !== queryFor(section) + "|page=" + state.page) return;
+    const currentKey = queryFor(section) + "|page=" + state.page + "|size=" + state.pageSize;
+    if (!section.isConnected || state.key !== currentKey) return;
+
     const posts: EditorialPost[] = Array.isArray(data.posts) ? data.posts : [];
     state.totalPages = Math.max(0, Number(data.pageCount || 0));
     if (!data.enabled) {
@@ -223,13 +239,13 @@ async function loadPosts(section: HTMLElement, state: EditorialFeed) {
         notice.textContent = "Danh sách bài viết hiện đang được ẩn trong quản trị.";
         notice.classList.remove("hidden");
       }
-      nav && (nav.hidden = true);
+      if (nav) nav.hidden = true;
     } else if (!posts.length) {
       grid?.replaceChildren();
       if (notice) {
         notice.textContent = state.page > 1
           ? "Trang này không còn bài viết. Hãy chọn trang trước."
-          : "Chưa có bài viết nào trong danh sách này.";
+          : "Chưa có bài viết phù hợp trong mục này.";
         notice.classList.remove("hidden");
       }
       renderPagination(section, state.page, state.totalPages);
@@ -250,14 +266,17 @@ async function loadPosts(section: HTMLElement, state: EditorialFeed) {
 }
 function bootPosts() {
   document.querySelectorAll<HTMLElement>("[data-ak-manual-feed]").forEach(section => {
-    const page = requestedPage();
-    const key = queryFor(section) + "|page=" + page;
-    let state = editorialStates.get(section);
-    if (state && state.key === key) return;
+    const page = requestedPage(section);
+    const rawSize = Number.parseInt(section.dataset.pageSize || "", 10);
+    const pageSize = Number.isInteger(rawSize) && rawSize > 0 ? Math.min(12, rawSize) : 6;
+    const key = queryFor(section) + "|page=" + page + "|size=" + pageSize;
+    const oldState = editorialStates.get(section);
+    if (oldState && oldState.key === key) return;
+
     section.querySelector("[data-manual-grid]")?.replaceChildren();
     section.querySelector("[data-manual-status]")?.classList.add("hidden");
     setFilterLabel(section);
-    state = { key, page, fetching: false, pageSize: 6, totalPages: 0 };
+    const state = { key, page, fetching:false, pageSize, totalPages:0 };
     editorialStates.set(section, state);
     void loadPosts(section, state);
   });

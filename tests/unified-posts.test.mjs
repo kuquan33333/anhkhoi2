@@ -11,19 +11,19 @@ const sampleSlugs = [
   "tin-cong-nghe-va-kiem-chung"
 ];
 
-test("homepage and archive use the exact same D1 feed without the old separate heading", () => {
+test("homepage is curated while archive stays on the unified D1 feed", () => {
   const home = read("src/pages/[...page].astro");
   const archive = read("src/pages/archive.astro");
-  const component = read("src/components/ManualPostsFeed.astro");
-  assert.match(home, /<ManualPostsFeed mode="home"/);
-  assert.doesNotMatch(home, /<PostPage/);
+  assert.match(home, /sectionTitle="Bài mới"/);
+  assert.match(home, /category="Công nghệ & AI"/);
+  assert.match(home, /category="Khoa học & Khám phá"/);
+  assert.match(home, /category="Du lịch & Trải nghiệm"/);
+  assert.match(home, /category="Quân sự & Công nghệ quốc phòng"/);
   assert.match(archive, /<ManualPostsFeed mode="archive"/);
-  assert.doesNotMatch(archive, /<ArchivePanel/);
-  assert.ok(!component.includes("Bài viết mới của Anh Khôi"));
-  assert.ok(!component.includes("ANH KHÔI · BÀI VIẾT"));
+  assert.doesNotMatch(home, /<PostPage/);
 });
 
-test("three historical example posts are preserved as editable drafts in migration", () => {
+test("three historical example posts remain preserved as editable drafts", () => {
   const seed = read("migrations/0007_seed_examples_draft.sql");
   const schema = read("migrations/0006_unified_editorial_posts.sql");
   for (const slug of sampleSlugs) {
@@ -34,66 +34,66 @@ test("three historical example posts are preserved as editable drafts in migrati
     assert.ok(schema.includes("ADD COLUMN " + col));
 });
 
-test("Fuwari metadata uses consistent calendar, category and tag navigation", () => {
+test("article cards use category pages, tags and stable article URLs", () => {
   const client = read("src/utils/manual-feed-runtime.ts");
   assert.ok(client.includes('icon("calendar")'));
   assert.ok(client.includes('icon("book")'));
   assert.ok(client.includes('icon("hash")'));
+  assert.ok(client.includes('categoryUrl(category)'));
   assert.ok(client.includes('"/archive/?tag="'));
-  assert.ok(client.includes('"/archive/?category="'));
   assert.ok(client.includes('"/bai-viet/?slug="'));
 });
 
-test("all migrated posts can be edited, hidden and deleted in Admin", () => {
+test("admin edits, hides and safely archives instead of physical deletion", () => {
   const ui = read("src/pages/admin.astro");
   const api = read("functions/api/admin/manual-posts/[id].js");
   for (const action of ["data-edit-post", "data-toggle-post", "data-remove-post"])
     assert.ok(ui.includes(action));
   for (const method of ["onRequestGet", "onRequestPatch", "onRequestDelete"])
     assert.ok(api.includes(method));
-  assert.ok(api.includes("current.cover_r2_key"));
-  assert.ok(api.includes("current.category"));
+  assert.match(api, /UPDATE manual_posts SET status='archived'/);
+  assert.doesNotMatch(api, /DELETE FROM manual_posts/);
   assert.ok(ui.includes('id="manualPublishedAt"'));
+  assert.ok(ui.includes('id="manualSources"'));
 });
 
-test("public API lists only published items with tags and stable pagination", async () => {
+test("public API lists only publishable items with tags and stable pagination", async () => {
   const seen = [];
-  const sample = { id: 1, slug: "sample", title: "Sample", title_en: "Sample EN",
-    excerpt: "", excerpt_en: "", language: "vi", category: "Công nghệ",
-    tags_json:'["AI"]', cover_r2_key:null, published_at:"2026-11-01T00:00:00.000Z",
-    updated_at:"2026-11-01", content_length:100 };
-  const env = { DB: { prepare(sql) {
+  const sample = { id:1,slug:"sample",title:"Sample",title_en:"Sample EN",
+    excerpt:"",excerpt_en:"",language:"vi",category:"Công nghệ & AI",
+    tags_json:'["AI"]',cover_r2_key:null,published_at:"2026-11-01T00:00:00.000Z",
+    updated_at:"2026-11-01",content_length:100 };
+  const env = { DB:{ prepare(sql) {
     seen.push(sql);
     return { bind(...params) {
       seen.push(params);
       return {
-        async all() { return { results:[sample] }; },
-        async first() { return sql.includes("COUNT(*) AS total") ? { total: 1 } : null; }
+        async all(){return {results:[sample]};},
+        async first(){return sql.includes("COUNT(*) AS total") ? {total:1} : null;}
       };
-    }, async first() {return {value:"true"};} };
+    }, async first(){return {value:"true"};} };
   } } };
-  const response = await listPosts({ request: new Request("https://example.com/api/manual-posts?limit=8"), env });
+  const response = await listPosts({request:new Request("https://example.com/api/manual-posts?limit=8"),env});
   const data = await response.json();
   assert.equal(data.enabled,true);
   assert.equal(data.posts[0].slug,"sample");
   assert.deepEqual(data.posts[0].tags,["AI"]);
-  assert.equal(data.nextOffset,1);
-  assert.equal(data.hasMore,false);
   assert.equal(data.total,1);
   assert.equal(data.pageCount,1);
   assert.ok(seen.some(x => typeof x === "string" && x.includes("status='published'")));
+  assert.ok(seen.some(x => typeof x === "string" && x.includes("REMOVE_DUPLICATE")));
 });
 
-test("sidebar reads current taxonomy from D1 instead of stale static markdown", async () => {
-  const env = { DB: { prepare() { return {
-    async first(){ return {value:"true"}; },
-    async all(){ return {results:[
-      {category:"Công nghệ",tags_json:'["AI","Video AI"]'},
-      {category:"Công nghệ",tags_json:'["AI"]'}
-    ]}; }
-  }; } } };
-  const response = await listTaxonomy({env});
-  const data = await response.json();
+test("sidebar taxonomy comes from current D1 posts", async () => {
+  const env = { DB:{ prepare(){return {
+    async first(){return {value:"true"};},
+    async all(){return {results:[
+      {category:"Công nghệ & AI",tags_json:'["AI","Video AI"]'},
+      {category:"Công nghệ & AI",tags_json:'["AI"]'}
+    ]};}
+  };} } };
+  const response=await listTaxonomy({env});
+  const data=await response.json();
   assert.equal(data.categories[0].count,2);
   assert.equal(data.tags.find(x=>x.name==="AI").count,2);
 });

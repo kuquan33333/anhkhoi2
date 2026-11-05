@@ -7,6 +7,7 @@ export async function onRequestGet({ env }) {
   const base = "https://anhkhoi.pages.dev";
   const result = await env.DB.prepare(
     "SELECT slug,title,excerpt,published_at FROM manual_posts WHERE status='published' " +
+    "AND COALESCE(editorial_action,'KEEP') NOT IN ('ARCHIVE','REMOVE_DUPLICATE') " +
     "ORDER BY COALESCE(published_at,created_at) DESC,id DESC LIMIT 50"
   ).all();
   const items = (result.results || []).map(post => {
@@ -19,7 +20,7 @@ export async function onRequestGet({ env }) {
   }).join("");
   const body = '<?xml version="1.0" encoding="UTF-8"?>' +
     '<rss version="2.0"><channel><title>Anh Khôi AI Media</title>' +
-    '<link>' + base + '/</link><description>Video AI, tin nổi bật và công nghệ</description>' +
+    '<link>' + base + '/</link><description>Công nghệ, AI, khoa học, khám phá và sáng tạo</description>' +
     '<language>vi</language>' + items + '</channel></rss>';
   return new Response(body, { headers: {
     "content-type":"application/rss+xml; charset=utf-8",

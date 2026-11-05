@@ -3,19 +3,93 @@ import type { GetStaticPaths } from "astro";
 import FacebookRuntimeFeed from "../components/FacebookRuntimeFeed.astro";
 import ManualPostsFeed from "../components/ManualPostsFeed.astro";
 import MainGridLayout from "../layouts/MainGridLayout.astro";
+import { categoryUrl } from "../constants/editorial-taxonomy";
 
-/** Every editorial post is now served from D1; keep the homepage independent of static post counts. */
+/** Editorial posts are served from D1; homepage curation is independent of static post counts. */
 export const getStaticPaths = (() => [
   { params: { page: undefined } }
 ]) satisfies GetStaticPaths;
 ---
-<MainGridLayout>
+<MainGridLayout
+  title="Anh Khôi AI Media"
+  description="Website cá nhân về công nghệ, AI, khoa học, khám phá, sáng tạo và những kiến thức hữu ích được giải thích dễ hiểu."
+>
   <section class="ak-home-lead onload-animation" aria-label="Giới thiệu Anh Khôi AI Media">
-    <span class="font-bold text-sm text-[var(--primary)]">ANH KHOI · AI MEDIA</span>
-    <h1><span data-ak-vi="Chuyện mới, góc nhìn mới — khám phá cùng Anh Khôi." data-ak-en="New stories, fresh perspectives — explore with Anh Khoi.">Chuyện mới, góc nhìn mới — khám phá cùng Anh Khôi.</span></h1>
-    <p data-ak-vi="Video AI giàu cảm hứng, những câu chuyện đang được quan tâm và góc nhìn dễ hiểu về công nghệ. Mình chọn lọc và chia sẻ nội dung để mỗi lần ghé thăm đều có điều thú vị." data-ak-en="Thought-provoking AI videos, stories worth following, and accessible perspectives on technology. I curate and share content so there is always something interesting to discover.">Video AI giàu cảm hứng, những câu chuyện đang được quan tâm và góc nhìn dễ hiểu về công nghệ. Mình chọn lọc và chia sẻ nội dung để mỗi lần ghé thăm đều có điều thú vị.</p>
-    <div class="ak-actions"><a href="/reels/"><span data-ak-vi="Khám phá Video AI" data-ak-en="Explore AI videos">Khám phá Video AI</span></a><a href="/about/"><span data-ak-vi="Về Anh Khôi" data-ak-en="About Anh Khoi">Về Anh Khôi</span></a></div>
+    <span class="font-bold text-xs tracking-[.12em] text-[var(--primary)]">WEBSITE CÁ NHÂN · CHUYÊN ĐỀ</span>
+    <h1>
+      <span
+        data-ak-vi="Công nghệ, AI, khoa học, khám phá, sáng tạo — được giải thích dễ hiểu."
+        data-ak-en="Technology, AI, science, exploration and creativity — explained clearly."
+      >Công nghệ, AI, khoa học, khám phá, sáng tạo — được giải thích dễ hiểu.</span>
+    </h1>
+    <p
+      data-ak-vi="Anh Khôi chọn lọc chủ đề có giá trị đọc lâu dài, ưu tiên giải thích cơ chế, bối cảnh và cách áp dụng thay vì chạy theo tin nóng. Đây là website cá nhân/chuyên đề, không phải cơ quan báo chí."
+      data-ak-en="Anh Khoi curates lasting topics and focuses on mechanisms, context and practical use rather than breaking-news volume. This is a personal specialist website, not a news organization."
+    >Anh Khôi chọn lọc chủ đề có giá trị đọc lâu dài, ưu tiên giải thích cơ chế, bối cảnh và cách áp dụng thay vì chạy theo tin nóng. Đây là website cá nhân/chuyên đề, không phải cơ quan báo chí.</p>
+    <div class="ak-actions">
+      <a href="/archive/"><span data-ak-vi="Khám phá bài viết" data-ak-en="Explore articles">Khám phá bài viết</span></a>
+      <a href="/reels/"><span data-ak-vi="Video & Reels" data-ak-en="Videos & Reels">Video & Reels</span></a>
+    </div>
   </section>
-  <ManualPostsFeed mode="home" />
+
+  <nav class="ak-home-topics card-base p-4 sm:p-5 mb-4" aria-label="Chuyên mục nổi bật">
+    <a href={categoryUrl("Công nghệ & AI")}>Công nghệ & AI</a>
+    <a href={categoryUrl("Khoa học & Khám phá")}>Khoa học & Khám phá</a>
+    <a href={categoryUrl("Du lịch & Trải nghiệm")}>Du lịch & Trải nghiệm</a>
+    <a href={categoryUrl("Quân sự & Công nghệ quốc phòng")}>Quân sự & Công nghệ quốc phòng</a>
+  </nav>
+
+  <ManualPostsFeed
+    mode="home"
+    sectionTitle="Bài mới"
+    sectionDescription="Những bài vừa cập nhật, được chọn theo giá trị giải thích thay vì nhịp tin nóng."
+    pageSize={5}
+    featured={true}
+  />
+
+  <ManualPostsFeed
+    mode="home"
+    category="Công nghệ & AI"
+    sectionTitle="Công nghệ & AI"
+    sectionDescription="AI, thiết bị, robot, phần mềm và hạ tầng công nghệ."
+    pageSize={3}
+  />
+
+  <ManualPostsFeed
+    mode="home"
+    category="Khoa học & Khám phá"
+    sectionTitle="Khoa học & Khám phá"
+    sectionDescription="Không gian, thiên văn, tự nhiên và những nghiên cứu đáng tìm hiểu."
+    pageSize={3}
+  />
+
+  <ManualPostsFeed
+    mode="home"
+    category="Du lịch & Trải nghiệm"
+    sectionTitle="Du lịch & Trải nghiệm"
+    sectionDescription="Điểm đến, cẩm nang và trải nghiệm có thể dùng lại cho chuyến đi thực tế."
+    pageSize={3}
+  />
+
+  <ManualPostsFeed
+    mode="home"
+    category="Quân sự & Công nghệ quốc phòng"
+    sectionTitle="Quân sự & Công nghệ quốc phòng"
+    sectionDescription="Kiến thức công khai về khí tài, cảm biến và công nghệ quốc phòng."
+    pageSize={3}
+  />
+
+  <section class="ak-social-secondary card-base p-5 sm:p-6 mt-4">
+    <span class="text-xs font-extrabold tracking-[.12em] text-[var(--primary)]">KÊNH CÁ NHÂN</span>
+    <h2 class="text-xl font-extrabold mt-1 text-90">Facebook & video</h2>
+    <p class="text-75 mt-2 leading-7">Nội dung công khai từ Facebook được giữ ở khu vực phụ, tách khỏi hệ thống bài viết chuyên đề.</p>
+  </section>
   <FacebookRuntimeFeed mode="home" />
 </MainGridLayout>
+
+<style>
+.ak-home-topics{display:flex;flex-wrap:wrap;gap:.55rem;border:1px solid var(--line-color)}
+.ak-home-topics a{display:inline-flex;align-items:center;min-height:2.5rem;padding:.55rem .85rem;border-radius:.7rem;background:var(--btn-regular-bg);color:var(--btn-content);font-size:.82rem;font-weight:800;text-decoration:none}
+.ak-home-topics a:hover{color:var(--primary);background:var(--btn-regular-bg-hover)}
+.ak-social-secondary{border:1px solid var(--line-color)}
+</style>
