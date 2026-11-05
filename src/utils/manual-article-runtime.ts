@@ -222,7 +222,7 @@ function updateSeo(post: any, slug: string) {
     description,
     image:[imageUrl],
     author:{"@type":"Person",name:"Anh Khôi"},
-    publisher:{"@type":"Organization",name:"Anh Khôi AI Media"},
+    publisher:{"@type":"Person",name:"Anh Khôi"},
     datePublished:post.published_at || post.created_at,
     dateModified:post.updated_at || post.published_at || post.created_at,
     mainEntityOfPage:canonicalUrl,
