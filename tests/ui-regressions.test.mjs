@@ -57,15 +57,15 @@ test("Facebook videos render the native player immediately for one-click playbac
 
 
 test("layout head contains real whitespace and valid canonical/social tags", () => {
-  const layout = read("src/layouts/Layout.astro");
+  const layout = source("src/layouts/Layout.astro");
   assert.doesNotMatch(layout, /\\n\\t/);
   assert.match(layout, /rel="canonical"/);
   assert.match(layout, /name="twitter:image"/);
 });
 
 test("editorial navigation keeps correct English labels on desktop and mobile", () => {
-  const navbar = read("src/components/Navbar.astro");
-  const menu = read("src/components/widget/NavMenuPanel.astro");
+  const navbar = source("src/components/Navbar.astro");
+  const menu = source("src/components/widget/NavMenuPanel.astro");
   for (const [url, label] of [
     ["/chuyen-muc/cong-nghe-ai/", "Technology & AI"],
     ["/chuyen-muc/khoa-hoc-kham-pha/", "Science & Discovery"],
