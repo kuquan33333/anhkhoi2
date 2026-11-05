@@ -1,3 +1,4 @@
+import { categoryUrl } from "../constants/editorial-taxonomy";
 type Facet = { name: string; count: number };
 function renderTaxonomy(items: Facet[], container: HTMLElement, kind: "category" | "tag") {
   container.replaceChildren();
@@ -10,7 +11,7 @@ function renderTaxonomy(items: Facet[], container: HTMLElement, kind: "category"
   }
   for (const item of items) {
     const a = document.createElement("a");
-    a.href = "/archive/?" + kind + "=" + encodeURIComponent(item.name);
+    a.href = kind === "category" ? categoryUrl(item.name) : "/archive/?tag=" + encodeURIComponent(item.name);
     a.className = kind === "category"
       ? "btn-plain flex w-full items-center !justify-between rounded-lg px-3 py-2 text-left text-75 font-medium hover:text-[var(--primary)]"
       : "inline-flex rounded-lg bg-[var(--btn-regular-bg)] px-3 py-2 text-[var(--btn-content)] font-medium hover:text-[var(--primary)]";
