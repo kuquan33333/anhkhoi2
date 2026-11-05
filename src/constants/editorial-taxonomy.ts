@@ -55,3 +55,20 @@ export function categoryUrl(name: string) {
   const item = categoryByName.get(name as EditorialCategory["name"]);
   return item ? `/chuyen-muc/${item.slug}/` : "/archive/";
 }
+
+export const legacyCategoryMap: Record<string, string> = {
+  "Thời sự & Xã hội": "Sức khỏe & Đời sống",
+  "Thế giới": "Khoa học & Khám phá",
+  "Quân sự & Quốc phòng": "Quân sự & Công nghệ quốc phòng",
+  "Pháp luật & An ninh": "Học tập & Kỹ năng số",
+  "Sức khỏe & Y tế": "Sức khỏe & Đời sống",
+  "Giáo dục": "Học tập & Kỹ năng số",
+  "Khoa học & Thiên văn": "Khoa học & Khám phá",
+  "Kinh tế & Kinh doanh": "Góc nhìn & Phân tích",
+  "Đời sống & Tạp chí": "Du lịch & Trải nghiệm",
+  "Văn hóa & Giải trí": "Văn hóa & Sáng tạo",
+};
+
+export function normalizeCategoryName(name: string) {
+  return legacyCategoryMap[name] || name;
+}
