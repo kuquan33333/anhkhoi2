@@ -70,7 +70,7 @@ function buildMeta(post: EditorialPost) {
   else post.tags.forEach((tag, index) => {
     if (index) tags.append(el("span", "ak-editorial-divider", "/"));
     const link = el("a", "", String(tag));
-    link.href = "/archive/?tag=" + encodeURIComponent(String(tag));
+    link.href = `/archive/?tag=${encodeURIComponent(String(tag))}`;
     tags.append(link);
   });
   group.append(tags);
@@ -78,7 +78,7 @@ function buildMeta(post: EditorialPost) {
   return meta;
 }
 function makeCard(post: EditorialPost) {
-  const href = "/bai-viet/?slug=" + encodeURIComponent(post.slug);
+  const href = `/bai-viet/?slug=${encodeURIComponent(post.slug)}`;
   const card = el("article", "ak-editorial-card card-base onload-animation");
   const validCover = typeof post.cover_r2_key === "string" &&
     /^admin\/[A-Za-z0-9/_\-.]+$/.test(post.cover_r2_key);
@@ -100,17 +100,17 @@ function makeCard(post: EditorialPost) {
   const count = el("div", "ak-editorial-read-time");
   const words = Number(post.words || 0);
   const minutes = Number(post.minutes || 1);
-  count.append(el("span", "", words + " từ"), el("span", "", "·"),
-    el("span", "", minutes + " phút đọc"));
+  count.append(el("span", "", `${words} từ`), el("span", "", "·"),
+    el("span", "", `${minutes} phút đọc`));
   main.append(count);
   card.append(main);
 
   if (validCover) {
     const photo = el("a", "ak-editorial-cover");
     photo.href = href;
-    photo.setAttribute("aria-label", "Xem bài: " + post.title);
+    photo.setAttribute("aria-label", `Xem bài: ${post.title}`);
     const img = el("img");
-    img.src = "/api/media?key=" + encodeURIComponent(post.cover_r2_key || "");
+    img.src = `/api/media?key=${encodeURIComponent(post.cover_r2_key || "")}`;
     img.alt = post.title;
     img.loading = "lazy";
     img.decoding = "async";
@@ -120,7 +120,7 @@ function makeCard(post: EditorialPost) {
   } else {
     const arrow = el("a", "ak-editorial-chevron", "›");
     arrow.href = href;
-    arrow.setAttribute("aria-label", "Xem bài: " + post.title);
+    arrow.setAttribute("aria-label", `Xem bài: ${post.title}`);
     card.append(arrow);
   }
   return card;
@@ -147,8 +147,8 @@ function setFilterLabel(section: HTMLElement) {
   const tag = u.searchParams.get("tag");
   const cat = u.searchParams.get("category");
   const normalizedCat = cat ? normalizeCategoryName(cat) : "";
-  label.textContent = tag ? "Bài viết theo tag: #" + tag :
-    normalizedCat ? "Bài viết trong chuyên mục: " + normalizedCat :
+  label.textContent = tag ? `Bài viết theo tag: #${tag}` :
+    normalizedCat ? `Bài viết trong chuyên mục: ${normalizedCat}` :
     u.searchParams.has("uncategorized") ? "Bài viết chưa phân loại" :
     "Tất cả bài viết, sắp xếp theo ngày mới nhất.";
 }
@@ -161,7 +161,7 @@ function pageHref(page: number): string {
   const u = new URL(location.href);
   if (page <= 1) u.searchParams.delete("page");
   else u.searchParams.set("page", String(page));
-  return u.pathname + (u.searchParams.size ? "?" + u.searchParams.toString() : "");
+  return u.pathname + (u.searchParams.size ? `?${u.searchParams.toString()}` : "");
 }
 function pageWindow(current: number, total: number): Array<number | "ellipsis"> {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -197,7 +197,7 @@ function renderPagination(section: HTMLElement, current: number, total: number) 
     const link = el("a", "ak-page-link", String(item));
     link.href = pageHref(item);
     link.setAttribute("data-no-swup", "");
-    link.setAttribute("aria-label", "Trang " + item);
+    link.setAttribute("aria-label", `Trang ${item}`);
     if (item === current) {
       link.classList.add("is-current");
       link.setAttribute("aria-current", "page");
@@ -223,12 +223,12 @@ async function loadPosts(section: HTMLElement, state: EditorialFeed) {
     const params = new URLSearchParams(queryFor(section));
     params.set("limit", String(state.pageSize));
     params.set("offset", String((state.page - 1) * state.pageSize));
-    const response = await fetch("/api/manual-posts?" + params.toString(), {
+    const response = await fetch(`/api/manual-posts?${params.toString()}`, {
       headers: { Accept: "application/json" }
     });
     if (!response.ok) throw new Error("post_feed_request_failed");
     const data = await response.json();
-    const currentKey = queryFor(section) + "|page=" + state.page + "|size=" + state.pageSize;
+    const currentKey = `${queryFor(section)}|page=${state.page}|size=${state.pageSize}`;
     if (!section.isConnected || state.key !== currentKey) return;
 
     const posts: EditorialPost[] = Array.isArray(data.posts) ? data.posts : [];
@@ -269,7 +269,7 @@ function bootPosts() {
     const page = requestedPage(section);
     const rawSize = Number.parseInt(section.dataset.pageSize || "", 10);
     const pageSize = Number.isInteger(rawSize) && rawSize > 0 ? Math.min(12, rawSize) : 6;
-    const key = queryFor(section) + "|page=" + page + "|size=" + pageSize;
+    const key = `${queryFor(section)}|page=${page}|size=${pageSize}`;
     const oldState = editorialStates.get(section);
     if (oldState && oldState.key === key) return;
 
