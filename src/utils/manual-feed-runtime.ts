@@ -98,7 +98,8 @@ function makeCard(post: EditorialPost) {
     main.append(excerpt);
   }
   const count = el("div", "ak-editorial-read-time");
-  const words = Number(post.words || 0), minutes = Number(post.minutes || 1);
+  const words = Number(post.words || 0);
+  const minutes = Number(post.minutes || 1);
   count.append(el("span", "", words + " từ"), el("span", "", "·"),
     el("span", "", minutes + " phút đọc"));
   main.append(count);
@@ -165,8 +166,8 @@ function pageHref(page: number): string {
 function pageWindow(current: number, total: number): Array<number | "ellipsis"> {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const pages = new Set<number>([1, total, current - 1, current, current + 1]);
-  if (current <= 4) [2, 3, 4, 5].forEach(p => pages.add(p));
-  if (current >= total - 3) [total - 4, total - 3, total - 2, total - 1].forEach(p => pages.add(p));
+  if (current <= 4) [2, 3, 4, 5].forEach(p => { pages.add(p); });
+  if (current >= total - 3) [total - 4, total - 3, total - 2, total - 1].forEach(p => { pages.add(p); });
   const ordered = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
   const out: Array<number | "ellipsis"> = [];
   ordered.forEach((p, i) => {
