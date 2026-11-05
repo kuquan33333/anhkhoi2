@@ -4,10 +4,13 @@ import { json, readJson } from "../../../_utils.js";
 const CATEGORY_OPTIONS = new Set([
   "Thời sự & Xã hội",
   "Thế giới",
-  "Sức khỏe & Y tế",
-  "Khoa học & Thiên văn",
-  "Công nghệ & AI",
+  "Quân sự & Quốc phòng",
+  "Pháp luật & An ninh",
   "Kinh tế & Kinh doanh",
+  "Công nghệ & AI",
+  "Khoa học & Thiên văn",
+  "Sức khỏe & Y tế",
+  "Giáo dục",
   "Đời sống & Tạp chí",
   "Văn hóa & Giải trí",
   "Thể thao"
